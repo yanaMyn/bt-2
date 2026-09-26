@@ -12,7 +12,7 @@ import { CategoryStatusesTab } from './CategoryStatusesTab'
 const TABS = [
   { id: 'anggota', label: 'Anggota' },
   { id: 'status', label: 'Status' },
-  { id: 'sesi', label: 'Sesi & Reset' },
+  { id: 'sesi', label: 'Sesi' },
   { id: 'pengaturan', label: 'Pengaturan' },
 ] as const
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatSessionDate, monthKey, monthLabel, sessionTitle, todayJakarta } from './sessionLabel'
+import { formatSessionDate, sessionTitle, todayJakarta } from './sessionLabel'
 
 describe('tanggal sesi', () => {
   it('memformat tanggal sama dengan server', () => {
@@ -13,13 +13,10 @@ describe('tanggal sesi', () => {
     expect(todayJakarta(new Date('2026-09-30T16:59:00Z'))).toBe('2026-09-30')
   })
 
-  it('bulan dari tanggal sesi', () => {
-    expect(monthKey('2026-09-30')).toBe('2026-09')
-    expect(monthLabel('2026-09')).toBe('September 2026')
-  })
-
   it('judul sesi menyertakan catatan bila ada', () => {
     expect(sessionTitle({ label: 'Sabtu, 26 September 2026', note: null })).toBe('Sabtu, 26 September 2026')
-    expect(sessionTitle({ label: 'Sabtu, 26 September 2026', note: 'Tafsir' })).toBe('Sabtu, 26 September 2026 — Tafsir')
+    expect(sessionTitle({ label: 'Sabtu, 26 September 2026', note: 'Tafsir' })).toBe(
+      'Sabtu, 26 September 2026 — Tafsir',
+    )
   })
 })

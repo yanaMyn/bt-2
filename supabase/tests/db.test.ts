@@ -333,7 +333,12 @@ describe('2.6 reset_category', () => {
     ])
     const snapshot = await db.query(`select member_id from session_members where session_id = $1`, [oldA.id])
     expect(snapshot.rows).toHaveLength(2)
-    expect((await db.query(`select 1 from attendance where session_id = $1`, [oldA.id])).rows).toHaveLength(1)
+    // Budi hadir; Citra belum mengisi sehingga otomatis dicatat Alpa saat reset (status otomatis bawaan).
+    const oldRows = await db.query<{ label: string }>(
+      `select st.label from attendance a join statuses st on st.id = a.status_id where a.session_id = $1 order by st.label`,
+      [oldA.id],
+    )
+    expect(oldRows.rows).toEqual([{ label: 'Alpa' }, { label: 'Hadir' }])
     expect((await db.query(`select 1 from attendance where session_id = $1`, [newId.id])).rows).toHaveLength(0)
 
     const summaryB = await one<{ present: number }>(db, `select present from category_summary where category_id = $1`, [b.id])

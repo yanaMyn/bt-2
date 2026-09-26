@@ -154,24 +154,60 @@ export async function importMembers(categoryId: string, rows: { name: string; ge
 
 // ---------- Sesi ----------
 
-export async function activeSessionAttendanceCount(categoryId: string): Promise<number> {
+/** Status otomatis saat sesi diakhiri (null = tidak ada). Hanya bisa dibaca admin. */
+export async function getResetStatusId(categoryId: string): Promise<string | null> {
+  const row = unwrap<{ reset_status_id: string | null }>(
+    await supabase.from('categories').select('reset_status_id').eq('id', categoryId).single(),
+  )
+  return row.reset_status_id
+}
+
+export async function setResetStatus(categoryId: string, statusId: string | null): Promise<void> {
+  unwrap(await supabase.rpc('set_reset_status', { p_category_id: categoryId, p_status_id: statusId }))
+}
+
+export interface EndPreview {
+  /** Anggota yang sudah mengisi di sesi aktif. */
+  filled: number
+  /** Anggota yang belum mengisi dan akan dicatat otomatis (bila ada status otomatis). */
+  unfilled: number
+  autoStatus: Status | null
+}
+
+export async function endPreview(categoryId: string): Promise<EndPreview> {
   const session = unwrap<Session>(
     await supabase.from('sessions').select('*').eq('category_id', categoryId).is('closed_at', null).single(),
   )
-  const res = await supabase
-    .from('attendance')
-    .select('member_id', { count: 'exact', head: true })
-    .eq('session_id', session.id)
-  if (res.error) throw res.error
-  return res.count ?? 0
+  const [members, attendance, statusId, statuses] = await Promise.all([
+    fetchAll<{ member_id: string }>((from, to) =>
+      supabase.from('category_members').select('member_id').eq('category_id', categoryId).range(from, to),
+    ),
+    fetchAll<{ member_id: string }>((from, to) =>
+      supabase.from('attendance').select('member_id').eq('session_id', session.id).range(from, to),
+    ),
+    getResetStatusId(categoryId),
+    listStatuses(categoryId),
+  ])
+  const filledIds = new Set(attendance.map((a) => a.member_id))
+  const filled = members.filter((m) => filledIds.has(m.member_id)).length
+  return {
+    filled,
+    unfilled: members.length - filled,
+    autoStatus: statuses.find((s) => s.id === statusId && !s.archived_at) ?? null,
+  }
 }
 
 const cleanNote = (note: string) => note.trim() || null
 
-/** Tutup sesi aktif dan buka sesi baru bertanggal sessionDate (YYYY-MM-DD). */
-export async function resetCategory(categoryId: string, sessionDate: string, note: string): Promise<string> {
-  return unwrap(
-    await supabase.rpc('reset_category', { p_category_id: categoryId, p_date: sessionDate, p_note: cleanNote(note) }),
+/** Tutup sesi aktif; yang belum mengisi dicatat dengan status otomatis kategori. */
+export async function endSession(categoryId: string): Promise<void> {
+  unwrap(await supabase.rpc('end_session', { p_category_id: categoryId }))
+}
+
+/** Buka sesi baru bertanggal sessionDate (YYYY-MM-DD); ditolak bila masih ada sesi aktif. */
+export async function startSession(categoryId: string, sessionDate: string, note: string): Promise<void> {
+  unwrap(
+    await supabase.rpc('start_session', { p_category_id: categoryId, p_date: sessionDate, p_note: cleanNote(note) }),
   )
 }
 
@@ -266,4 +302,24 @@ export async function listSessionStats(): Promise<SessionStatRow[]> {
   return fetchAll<SessionStatRow>((from, to) =>
     supabase.from('session_stats').select('*').order('session_id').range(from, to),
   )
+}
+
+// ---------- Aksi massal anggota ----------
+
+export async function removeMembersFromCategory(categoryId: string, memberIds: string[]): Promise<number> {
+  return unwrap(
+    await supabase.rpc('remove_members_from_category', { p_category_id: categoryId, p_member_ids: memberIds }),
+  )
+}
+
+export async function deleteMembers(memberIds: string[]): Promise<number> {
+  return unwrap(await supabase.rpc('delete_members', { p_member_ids: memberIds }))
+}
+
+/** Jumlah orang (dari daftar) yang punya catatan kehadiran, dan total catatannya. */
+export async function membersWithHistory(memberIds: string[]): Promise<{ people: number; records: number }> {
+  const rows = unwrap<{ people: number; records: number }[]>(
+    await supabase.rpc('members_with_history', { p_member_ids: memberIds }),
+  )
+  return rows[0]
 }

@@ -3,35 +3,45 @@ import { useMemo } from 'react'
 import { useSearchParams } from 'react-router'
 import { StatusPill } from '../../components/StatusPill'
 import { Button, Card, ErrorText, Field, inputClass } from '../../components/ui'
-import { compareByMonth, compareBySession, maxSessionCount } from '../../lib/compare'
-import { errorMessage } from '../../lib/errors'
-import { downloadSheets, memberRecapSheet, monthRecapSheets, sessionRecapSheets } from '../../lib/exportXlsx'
+import { compareByRange } from '../../lib/compare'
 import {
-  availableMonths,
+  allRange,
+  formatDateShort,
+  nearestDates,
+  normalizeRange,
+  presetRange,
+  rangeLabel,
+  type DateRange,
+} from '../../lib/dateRange'
+import { errorMessage } from '../../lib/errors'
+import { downloadSheets, memberRecapSheet, rangeRecapSheets } from '../../lib/exportXlsx'
+import {
   memberRecap,
-  monthRecap,
-  sessionRecap,
+  rangeRecap,
+  sessionsInRange,
   type MemberRecap,
   type RecapRow,
   type ReportData,
 } from '../../lib/reports'
-import { monthLabel, sessionTitle } from '../../lib/sessionLabel'
+import { sessionTitle, todayJakarta } from '../../lib/sessionLabel'
 import type { Stats } from '../../lib/stats'
 import { listCategories, listSessionStats, loadReportData } from './api'
 import { CategoryCompareChart } from './CategoryCompareChart'
+import { DateRangePicker } from './DateRangePicker'
 
 const MODES = [
-  ['sesi', 'Per sesi'],
-  ['bulan', 'Per bulan'],
+  ['rekap', 'Rekap'],
   ['anggota', 'Per anggota'],
   ['grafik', 'Grafik'],
 ] as const
 type Mode = (typeof MODES)[number][0]
 
+const isDate = (v: string | null): v is string => Boolean(v && /^\d{4}-\d{2}-\d{2}$/.test(v))
+
 export function ReportsPage() {
   const [params, setParams] = useSearchParams()
   const categoryId = params.get('kategori') ?? ''
-  const mode: Mode = MODES.some(([id]) => id === params.get('mode')) ? (params.get('mode') as Mode) : 'sesi'
+  const mode: Mode = MODES.some(([id]) => id === params.get('mode')) ? (params.get('mode') as Mode) : 'rekap'
   const update = (patch: Record<string, string | null>) => {
     const next = new URLSearchParams(params)
     for (const [k, v] of Object.entries(patch)) {
@@ -40,6 +50,11 @@ export function ReportsPage() {
     }
     setParams(next, { replace: true })
   }
+  // Rentang dari URL (dari/sampai); null = pakai default tiap tab.
+  const from = params.get('dari')
+  const to = params.get('sampai')
+  const chosen: DateRange | null = isDate(from) && isDate(to) ? normalizeRange(from, to) : null
+  const setRange = (r: DateRange) => update({ dari: r.from, sampai: r.to })
 
   const { data: categories } = useQuery({ queryKey: ['admin', 'category-list'], queryFn: listCategories })
   const { data, isPending, error } = useQuery({
@@ -52,7 +67,7 @@ export function ReportsPage() {
     <div className="flex flex-col gap-4">
       <h1 className="text-2xl font-bold">Laporan</h1>
       <Card className="flex flex-col gap-3">
-        <div className="grid grid-cols-2 gap-1 rounded-2xl bg-gray-200/70 p-1 sm:grid-cols-4" role="tablist">
+        <div className="grid grid-cols-3 gap-1 rounded-2xl bg-gray-200/70 p-1" role="tablist">
           {MODES.map(([id, label]) => (
             <button
               key={id}
@@ -71,9 +86,7 @@ export function ReportsPage() {
             <select
               className={inputClass}
               value={categoryId}
-              onChange={(e) =>
-                update({ kategori: e.target.value || null, sesi: null, bulan: null, dari: null, sampai: null })
-              }
+              onChange={(e) => update({ kategori: e.target.value || null })}
             >
               <option value="">— Pilih kategori —</option>
               {categories?.map((c) => (
@@ -88,36 +101,21 @@ export function ReportsPage() {
       </Card>
 
       {mode === 'grafik' ? (
-        <CompareReport
-          by={params.get('per') === 'bulan' ? 'bulan' : 'sesi'}
-          offset={Number(params.get('ke') ?? 0) || 0}
-          month={params.get('bulan')}
-          onChange={update}
-        />
+        <CompareReport range={chosen} onRange={setRange} />
       ) : (
         <>
           {!categoryId && <p className="text-muted">Pilih kategori untuk melihat laporan.</p>}
           {categoryId && isPending && <p className="text-muted">Memuat…</p>}
           <ErrorText>{error && errorMessage(error)}</ErrorText>
-          {data && mode === 'sesi' && (
-            <SessionReport data={data} sessionId={params.get('sesi')} onSession={(id) => update({ sesi: id })} />
-          )}
-          {data && mode === 'bulan' && (
-            <MonthReport data={data} month={params.get('bulan')} onMonth={(m) => update({ bulan: m })} />
-          )}
-          {data && mode === 'anggota' && (
-            <MemberReport
-              data={data}
-              from={params.get('dari')}
-              to={params.get('sampai')}
-              onRange={(dari, sampai) => update({ dari, sampai })}
-            />
-          )}
+          {data && mode === 'rekap' && <RecapReport data={data} range={chosen} onRange={setRange} />}
+          {data && mode === 'anggota' && <MemberReport data={data} range={chosen} onRange={setRange} />}
         </>
       )}
     </div>
   )
 }
+
+const sessionDates = (data: ReportData) => data.sessions.map((s) => s.session_date)
 
 function RecapTable({ rows, stats, caption }: { rows: RecapRow[]; stats: Stats; caption?: string }) {
   return (
@@ -206,288 +204,176 @@ function MemberRecapTable({ recap, emptyText }: { recap: MemberRecap; emptyText:
   )
 }
 
-function SessionReport({
+function RecapReport({
   data,
-  sessionId,
-  onSession,
+  range,
+  onRange,
 }: {
   data: ReportData
-  sessionId: string | null
-  onSession: (id: string) => void
+  range: DateRange | null
+  onRange: (r: DateRange) => void
 }) {
-  const current = data.sessions.find((s) => s.id === sessionId) ?? data.sessions[0]
-  const recap = useMemo(() => sessionRecap(data, current.id), [data, current.id])
+  const dates = sessionDates(data)
+  // Default: tanggal sesi terbaru.
+  const latest = allRange(dates)?.to ?? todayJakarta()
+  const current = range ?? { from: latest, to: latest }
+  const recap = useMemo(() => rangeRecap(data, current), [data, current.from, current.to])
+  const near = nearestDates(dates, current)
 
   return (
     <>
-      <Card className="flex flex-col gap-3">
-        <Field label="Sesi">
-          <select className={inputClass} value={current.id} onChange={(e) => onSession(e.target.value)}>
-            {data.sessions.map((s) => (
-              <option key={s.id} value={s.id}>
-                {sessionTitle(s)}
-                {s.closed_at ? '' : ' (aktif)'}
-              </option>
-            ))}
-          </select>
-        </Field>
-        {current.note && <p className="text-sm break-words text-muted">Catatan: {current.note}</p>}
-        <Button
-          variant="secondary"
-          onClick={() => downloadSheets(`${data.category.name}_${current.label}`, sessionRecapSheets(recap))}
-        >
-          ⬇ Ekspor .xlsx
-        </Button>
+      <Card>
+        <DateRangePicker value={current} onChange={onRange} sessionDates={dates} />
       </Card>
 
-      <RecapTable rows={recap.rows} stats={recap.stats} />
+      {recap.sessions.length === 0 ? (
+        <Card className="flex flex-col gap-3">
+          <p className="font-semibold">
+            Tidak ada sesi pada {current.from === current.to ? 'tanggal ini' : 'rentang ini'}.
+          </p>
+          {(near.before || near.after) && (
+            <div className="flex flex-wrap gap-2">
+              <span className="w-full text-sm text-muted">Sesi terdekat:</span>
+              {[near.before, near.after]
+                .filter((d): d is string => Boolean(d))
+                .map((d) => (
+                  <Button key={d} variant="secondary" onClick={() => onRange({ from: d, to: d })}>
+                    {formatDateShort(d)}
+                  </Button>
+                ))}
+            </div>
+          )}
+        </Card>
+      ) : (
+        <>
+          <Card className="flex flex-col gap-2">
+            <p className="font-bold">
+              {rangeLabel(current)} · {recap.sessions.length} sesi
+            </p>
+            <ul className="text-sm text-muted">
+              {recap.sessions.map((s) => (
+                <li key={s.id} className="break-words">
+                  • {sessionTitle(s)}
+                  {s.closed_at ? '' : ' (aktif)'}
+                </li>
+              ))}
+            </ul>
+            <Button
+              variant="secondary"
+              onClick={() => downloadSheets(`${data.category.name}_${rangeLabel(current)}`, rangeRecapSheets(recap))}
+            >
+              ⬇ Ekspor .xlsx
+            </Button>
+          </Card>
 
-      <Card className="p-0">
-        <p className="border-b border-gray-100 p-3 font-bold">Daftar anggota ({recap.members.length})</p>
-        <ul className="divide-y divide-gray-100">
-          {recap.members.map(({ member, status }) => (
-            <li key={member.id} className="flex items-center gap-3 px-3 py-2">
-              <span className="min-w-0 flex-1 break-words">
-                {member.name} <span className="text-muted">({member.gender})</span>
-              </span>
-              <StatusPill status={status ?? undefined} />
-            </li>
-          ))}
-        </ul>
-      </Card>
-    </>
-  )
-}
+          <RecapTable
+            rows={recap.rows}
+            stats={recap.stats}
+            caption={
+              recap.sessions.length > 1
+                ? 'Jumlah isian seluruh sesi terpilih. % hadir = isian berstatus hadir ÷ seluruh anggota-sesi.'
+                : undefined
+            }
+          />
 
-function MonthReport({
-  data,
-  month,
-  onMonth,
-}: {
-  data: ReportData
-  month: string | null
-  onMonth: (month: string) => void
-}) {
-  const months = useMemo(() => availableMonths(data.sessions), [data.sessions])
-  const current = month && months.includes(month) ? month : months[0]
-  const recap = useMemo(() => monthRecap(data, current), [data, current])
-
-  return (
-    <>
-      <Card className="flex flex-col gap-3">
-        <Field label="Bulan">
-          <select className={inputClass} value={current} onChange={(e) => onMonth(e.target.value)}>
-            {months.map((m) => (
-              <option key={m} value={m}>
-                {monthLabel(m)}
-              </option>
-            ))}
-          </select>
-        </Field>
-        <p className="text-sm text-muted">
-          {recap.sessions.length} sesi bertanggal di bulan ini: {recap.sessions.map(sessionTitle).join('; ')}.
-        </p>
-        <Button
-          variant="secondary"
-          onClick={() => downloadSheets(`${data.category.name}_Bulan-${monthLabel(current)}`, monthRecapSheets(recap))}
-        >
-          ⬇ Ekspor .xlsx
-        </Button>
-      </Card>
-
-      <RecapTable
-        rows={recap.rows}
-        stats={recap.stats}
-        caption="Jumlah isian seluruh sesi di bulan ini. % hadir = isian berstatus hadir ÷ seluruh anggota-sesi."
-      />
-
-      <p className="font-bold">Rekap per anggota — {monthLabel(current)}</p>
-      <MemberRecapTable recap={recap.members} emptyText="Tidak ada anggota pada bulan ini." />
+          {recap.single ? (
+            <Card className="p-0">
+              <p className="border-b border-gray-100 p-3 font-bold">Daftar anggota ({recap.single.members.length})</p>
+              <ul className="divide-y divide-gray-100">
+                {recap.single.members.map(({ member, status }) => (
+                  <li key={member.id} className="flex items-center gap-3 px-3 py-2">
+                    <span className="min-w-0 flex-1 break-words">
+                      {member.name} <span className="text-muted">({member.gender})</span>
+                    </span>
+                    <StatusPill status={status ?? undefined} />
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          ) : (
+            <>
+              <p className="font-bold">Rekap per anggota</p>
+              <MemberRecapTable recap={recap.members} emptyText="Tidak ada anggota pada sesi terpilih." />
+            </>
+          )}
+        </>
+      )}
     </>
   )
 }
 
 function MemberReport({
   data,
-  from,
-  to,
+  range,
   onRange,
 }: {
   data: ReportData
-  from: string | null
-  to: string | null
-  onRange: (from: string, to: string) => void
+  range: DateRange | null
+  onRange: (r: DateRange) => void
 }) {
-  // Kronologis (terlama dulu) untuk pemilihan rentang.
-  const chrono = useMemo(() => [...data.sessions].reverse(), [data.sessions])
-  const fromIdx = Math.max(
-    0,
-    chrono.findIndex((s) => s.id === from),
-  )
-  const toFound = chrono.findIndex((s) => s.id === to)
-  const toIdx = toFound < 0 ? chrono.length - 1 : toFound
-  const [lo, hi] = fromIdx <= toIdx ? [fromIdx, toIdx] : [toIdx, fromIdx]
-  const range = chrono.slice(lo, hi + 1)
+  const dates = sessionDates(data)
+  // Default: semua sesi.
+  const current = range ?? allRange(dates) ?? { from: todayJakarta(), to: todayJakarta() }
+  const sessions = useMemo(() => sessionsInRange(data.sessions, current), [data, current.from, current.to])
   const recap = useMemo(
     () =>
       memberRecap(
         data,
-        range.map((s) => s.id),
+        sessions.map((s) => s.id),
       ),
-    [data, range],
+    [data, sessions],
   )
-  const rangeLabel = range.length === 1 ? range[0].label : `${range[0].label} sd ${range.at(-1)!.label}`
 
   return (
     <>
       <Card className="flex flex-col gap-3">
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Field label="Dari sesi">
-            <select
-              className={inputClass}
-              value={chrono[lo].id}
-              onChange={(e) => onRange(e.target.value, chrono[hi].id)}
-            >
-              {chrono.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Sampai sesi">
-            <select
-              className={inputClass}
-              value={chrono[hi].id}
-              onChange={(e) => onRange(chrono[lo].id, e.target.value)}
-            >
-              {chrono.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.label}
-                  {s.closed_at ? '' : ' (aktif)'}
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
+        <DateRangePicker value={current} onChange={onRange} sessionDates={dates} />
         <p className="text-sm text-muted">
-          {range.length} sesi. Persentase = sesi berstatus hadir ÷ sesi saat orang tersebut menjadi anggota.
+          {rangeLabel(current)} · {sessions.length} sesi. Persentase = sesi berstatus hadir ÷ sesi saat orang tersebut
+          menjadi anggota.
         </p>
         <Button
           variant="secondary"
+          disabled={sessions.length === 0}
           onClick={() =>
-            downloadSheets(`${data.category.name}_Rekap-Anggota_${rangeLabel}`, [
-              { name: 'Rekap Anggota', rows: memberRecapSheet(recap) },
+            downloadSheets(`${data.category.name}_Rekap-Anggota_${rangeLabel(current)}`, [
+              { name: 'Rekap Anggota', rows: [['Periode', rangeLabel(current)], [], ...memberRecapSheet(recap)] },
             ])
           }
         >
           ⬇ Ekspor .xlsx
         </Button>
       </Card>
-      <MemberRecapTable recap={recap} emptyText="Tidak ada anggota pada rentang ini." />
+      <MemberRecapTable recap={recap} emptyText="Tidak ada sesi pada pilihan ini." />
     </>
   )
 }
 
-function CompareReport({
-  by,
-  offset,
-  month,
-  onChange,
-}: {
-  by: 'sesi' | 'bulan'
-  offset: number
-  month: string | null
-  onChange: (patch: Record<string, string | null>) => void
-}) {
+function CompareReport({ range, onRange }: { range: DateRange | null; onRange: (r: DateRange) => void }) {
   const { data: categories } = useQuery({ queryKey: ['admin', 'category-list'], queryFn: listCategories })
   const {
     data: stats,
     isPending,
     error,
   } = useQuery({ queryKey: ['admin', 'session-stats'], queryFn: listSessionStats })
-
-  const months = useMemo(() => [...new Set(stats?.map((s) => s.month))].sort().reverse(), [stats])
-  const currentMonth = month && months.includes(month) ? month : months[0]
-  const maxOffset = Math.max(0, maxSessionCount(stats ?? []) - 1)
-  const currentOffset = Math.min(offset, maxOffset)
-
-  const items = useMemo(() => {
-    if (!categories || !stats) return []
-    return by === 'sesi'
-      ? compareBySession(categories, stats, currentOffset)
-      : currentMonth
-        ? compareByMonth(categories, stats, currentMonth)
-        : []
-  }, [by, categories, stats, currentOffset, currentMonth])
-
-  const offsetLabel = (n: number) => (n === 0 ? 'Sesi aktif' : `${n} sesi sebelumnya`)
+  // Default: bulan ini.
+  const current = range ?? presetRange('bulan-ini', todayJakarta())
+  const dates = useMemo(() => stats?.map((s) => s.session_date) ?? [], [stats])
+  const items = useMemo(
+    () => (categories && stats ? compareByRange(categories, stats, current) : []),
+    [categories, stats, current.from, current.to],
+  )
 
   return (
     <>
-      <Card className="flex flex-col gap-3">
-        <div className="grid grid-cols-2 gap-1 rounded-2xl bg-gray-200/70 p-1" role="tablist" aria-label="Bandingkan">
-          {(
-            [
-              ['sesi', 'Per sesi'],
-              ['bulan', 'Per bulan'],
-            ] as const
-          ).map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={by === id}
-              onClick={() => onChange({ per: id })}
-              className={`min-h-11 rounded-xl px-2 font-medium ${by === id ? 'bg-white shadow-sm' : 'text-muted'}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-        {by === 'sesi' ? (
-          <Field label="Sesi" hint="Dihitung mundur per kategori dari sesi yang sedang berjalan.">
-            <select
-              className={inputClass}
-              value={currentOffset}
-              onChange={(e) => onChange({ ke: e.target.value === '0' ? null : e.target.value })}
-            >
-              {Array.from({ length: maxOffset + 1 }, (_, n) => (
-                <option key={n} value={n}>
-                  {offsetLabel(n)}
-                </option>
-              ))}
-            </select>
-          </Field>
-        ) : (
-          <Field label="Bulan" hint="Gabungan semua sesi yang dimulai di bulan ini.">
-            <select
-              className={inputClass}
-              value={currentMonth ?? ''}
-              onChange={(e) => onChange({ bulan: e.target.value })}
-            >
-              {months.map((m) => (
-                <option key={m} value={m}>
-                  {monthLabel(m)}
-                </option>
-              ))}
-            </select>
-          </Field>
-        )}
+      <Card>
+        <DateRangePicker value={current} onChange={onRange} sessionDates={dates} />
       </Card>
-
       {isPending && <p className="text-muted">Memuat…</p>}
       <ErrorText>{error && errorMessage(error)}</ErrorText>
       {stats && (
         <Card>
-          <CategoryCompareChart
-            items={items}
-            caption={
-              by === 'sesi'
-                ? `% hadir per kategori — ${offsetLabel(currentOffset).toLowerCase()}`
-                : `% hadir per kategori — ${currentMonth ? monthLabel(currentMonth) : ''}`
-            }
-          />
+          <CategoryCompareChart items={items} caption={`% hadir per kategori — ${rangeLabel(current)}`} />
         </Card>
       )}
     </>

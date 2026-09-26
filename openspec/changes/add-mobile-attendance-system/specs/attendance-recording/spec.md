@@ -17,6 +17,10 @@ Halaman `/` SHALL menampilkan semua kategori aktif sebagai kartu yang dapat di-t
 - **WHEN** pengunjung men-tap kartu "Kelas A"
 - **THEN** sistem membuka `/k/kelas-a`
 
+#### Scenario: Kategori tanpa sesi berjalan
+- **WHEN** sebuah kategori tidak memiliki sesi aktif
+- **THEN** kartunya tetap tampil dengan tulisan "Belum ada sesi berjalan" tanpa persentase
+
 #### Scenario: Belum ada kategori
 - **WHEN** belum ada kategori sama sekali
 - **THEN** beranda menampilkan pesan kosong yang ramah

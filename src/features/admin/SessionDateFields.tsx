@@ -17,7 +17,7 @@ export function SessionDateFields({
 }) {
   return (
     <>
-      <Field label="Tanggal sesi" hint={date ? `Label: ${formatSessionDate(date)}` : 'Pilih tanggal dari kalender.'}>
+      <Field label="Tanggal Sesi Baru Berikutnya" hint={date ? `Label: ${formatSessionDate(date)}` : 'Pilih tanggal dari kalender.'}>
         <input type="date" required className={inputClass} value={date} onChange={(e) => onDate(e.target.value)} />
       </Field>
       <Field label="Catatan (opsional)" hint={`${note.length}/${NOTE_MAX} karakter, mis. tema kajian atau pemateri.`}>

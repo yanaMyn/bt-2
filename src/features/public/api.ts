@@ -20,7 +20,8 @@ export async function fetchSummaries(): Promise<CategorySummary[]> {
 
 export interface CategoryPageData {
   category: Category
-  session: Session
+  /** null bila sesi sudah diakhiri dan belum ada sesi baru. */
+  session: Session | null
   statuses: Status[]
   members: Member[]
   /** member_id -> status_id pada sesi aktif */
@@ -39,8 +40,8 @@ export async function fetchCategoryPage(slug: string): Promise<CategoryPageData 
       .select('*')
       .eq('category_id', category.id)
       .is('closed_at', null)
-      .single()
-      .then((r) => unwrap<Session>(r)),
+      .maybeSingle()
+      .then((r) => unwrap<Session | null>(r)),
     supabase
       .from('statuses')
       .select('*')
@@ -55,9 +56,11 @@ export async function fetchCategoryPage(slug: string): Promise<CategoryPageData 
       .then((r) => unwrap<{ member: Member }[]>(r as never)),
   ])
 
-  const attendanceRows = unwrap<AttendanceRow[]>(
-    await supabase.from('attendance').select('session_id, member_id, status_id').eq('session_id', session.id),
-  )
+  const attendanceRows = session
+    ? unwrap<AttendanceRow[]>(
+        await supabase.from('attendance').select('session_id, member_id, status_id').eq('session_id', session.id),
+      )
+    : []
 
   const members = memberRows
     .map((r) => r.member)

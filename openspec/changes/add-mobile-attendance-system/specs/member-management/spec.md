@@ -46,3 +46,57 @@ Sistem SHALL menyediakan dua aksi terpisah: "Keluarkan dari kategori" yang hanya
 #### Scenario: Hapus orang dengan riwayat
 - **WHEN** admin menghapus orang yang sudah memiliki catatan kehadiran
 - **THEN** sistem meminta konfirmasi dengan mengetik nama orang tersebut, lalu menghapus orang beserta seluruh keanggotaan dan catatan kehadirannya
+
+### Requirement: Aksi massal anggota
+Admin SHALL dapat memilih banyak orang sekaligus di tab Anggota sebuah kategori dan di menu Anggota global, dengan kotak centang per baris dan "Pilih semua" yang berlaku untuk seluruh hasil pencarian di semua halaman. Di tab Anggota kategori tersedia aksi massal "Keluarkan dari kategori" dan "Hapus orang"; di menu Anggota global tersedia "Hapus orang". Aksi massal SHALL dijalankan atomik: semua orang terpilih diproses, atau tidak ada sama sekali bila terjadi kegagalan. Bila di antara orang yang akan dihapus ada yang memiliki riwayat kehadiran, dialog konfirmasi SHALL menyebut jumlahnya dan meminta admin mengetik "HAPUS".
+
+#### Scenario: Keluarkan banyak orang dari kategori
+- **WHEN** admin memilih 5 anggota di tab Anggota "Kelas A" lalu memilih "Keluarkan dari kategori" dan mengonfirmasi
+- **THEN** kelima orang tidak lagi menjadi anggota "Kelas A", tetap ada di kategori lain dan menu Anggota, dan riwayat sesi yang sudah ditutup tetap ada di laporan
+
+#### Scenario: Pilih semua hasil pencarian
+- **WHEN** admin mengetik "Fa" di pencarian lalu menekan "Pilih semua"
+- **THEN** semua orang yang cocok dengan pencarian terpilih, termasuk yang berada di halaman lain, dan orang yang tidak cocok tidak terpilih
+
+#### Scenario: Hapus banyak orang tanpa riwayat
+- **WHEN** admin memilih 10 orang hasil import yang salah, yang belum memiliki catatan kehadiran, lalu memilih "Hapus orang"
+- **THEN** sistem meminta konfirmasi biasa lalu menghapus kesepuluh orang dari semua kategori
+
+#### Scenario: Hapus banyak orang dengan riwayat
+- **WHEN** admin memilih 4 orang dan 2 di antaranya memiliki catatan kehadiran, lalu memilih "Hapus orang"
+- **THEN** dialog menyebut 2 orang memiliki riwayat yang akan ikut terhapus dan tombol hapus baru aktif setelah admin mengetik "HAPUS"
+
+#### Scenario: Hanya admin
+- **WHEN** klien anonim memanggil fungsi aksi massal
+- **THEN** server menolak permintaan tersebut
+
+### Requirement: Pagination daftar anggota admin
+Daftar di tab Anggota kategori dan menu Anggota SHALL dibagi per halaman dengan pilihan 10, 25, atau 50 nama per halaman (default 25), beserta navigasi halaman sebelumnya/berikutnya dan keterangan posisi (mis. "26–50 dari 120"). Pilihan jumlah per halaman SHALL diingat di perangkat admin. Pencarian SHALL mencari di seluruh data, bukan hanya halaman yang tampil, dan mengubah kata pencarian atau jumlah per halaman SHALL kembali ke halaman 1. Pilihan kotak centang SHALL tetap tersimpan saat berpindah halaman.
+
+#### Scenario: Ganti jumlah per halaman
+- **WHEN** kategori memiliki 120 anggota dan admin memilih 50 per halaman
+- **THEN** daftar menampilkan 50 nama, keterangan "1–50 dari 120", dan 3 halaman
+
+#### Scenario: Pencarian lintas halaman
+- **WHEN** admin berada di halaman 3 lalu mengetik nama yang ada di halaman 1
+- **THEN** daftar kembali ke halaman 1 dan menampilkan nama tersebut
+
+#### Scenario: Pilihan tetap saat pindah halaman
+- **WHEN** admin mencentang 3 nama di halaman 1 lalu pindah ke halaman 2 dan mencentang 2 nama
+- **THEN** bilah aksi menampilkan "5 dipilih"
+
+### Requirement: Filter kategori di menu Anggota
+Menu Anggota (semua orang) SHALL menyediakan filter kategori dengan pilihan "Semua kategori" (default), setiap kategori (kategori nonaktif ditandai), dan "Tidak di kategori mana pun". Filter SHALL dapat digabung dengan pencarian nama, dan "Pilih semua", aksi massal, serta pagination SHALL berlaku pada hasil yang sudah difilter. Pilihan filter SHALL tersimpan di alamat halaman.
+
+#### Scenario: Filter satu kategori
+- **WHEN** admin memilih filter "Kajian Ahad"
+- **THEN** daftar hanya menampilkan orang yang menjadi anggota "Kajian Ahad", termasuk yang juga tergabung di kategori lain
+
+#### Scenario: Orang tanpa kategori
+- **WHEN** admin memilih "Tidak di kategori mana pun"
+- **THEN** daftar hanya menampilkan orang yang tidak tergabung di kategori mana pun
+
+#### Scenario: Filter digabung pencarian dan pilih semua
+- **WHEN** admin memilih filter "Kelas A", mengetik "Fa", lalu menekan "Pilih semua"
+- **THEN** hanya anggota "Kelas A" yang namanya mengandung "Fa" yang terpilih
+

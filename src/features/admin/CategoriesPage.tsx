@@ -70,11 +70,11 @@ export function CategoriesPage() {
                   {c.name} {c.pin_enabled && <span title="PIN aktif">🔒</span>} {!c.is_active && <InactiveBadge />}
                 </p>
                 <p className="text-sm text-muted">
-                  {c.total} anggota · {c.session_label}
+                  {c.total} anggota · {c.session_label ?? 'Belum ada sesi berjalan'}
                 </p>
               </div>
               <span className="shrink-0 text-xl font-bold tabular-nums text-brand-700">
-                {stat(c.present, c.total).percent}%
+                {c.session_id ? `${stat(c.present, c.total).percent}%` : '–'}
               </span>
             </Link>
           </li>

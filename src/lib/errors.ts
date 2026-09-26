@@ -12,6 +12,8 @@ const MESSAGES: Record<string, string> = {
   INVALID_ROW: 'Ada baris yang tidak valid. Tidak ada data yang disimpan.',
   NOT_ADMIN: 'Sesi admin berakhir. Silakan masuk lagi.',
   NOTE_TOO_LONG: 'Catatan maksimal 200 karakter.',
+  NO_ACTIVE_SESSION: 'Tidak ada sesi yang sedang berjalan.',
+  SESSION_ALREADY_ACTIVE: 'Masih ada sesi berjalan. Akhiri sesi aktif dulu.',
 }
 
 /** Kode error dari fungsi server (mis. "PIN_INVALID"), bila ada. */

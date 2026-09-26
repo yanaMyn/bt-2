@@ -53,7 +53,9 @@ export function parseWorkbook(data: ArrayBuffer): ParsedRow[] {
   const nameCol = header.indexOf('nama')
   const genderCol = header.indexOf('jenis kelamin')
   if (nameCol < 0 || genderCol < 0) {
-    throw new ImportFormatError('Format file tidak sesuai template: kolom "Nama" dan "Jenis Kelamin" wajib ada di baris pertama.')
+    throw new ImportFormatError(
+      'Format file tidak sesuai template: kolom "Nama" dan "Jenis Kelamin" wajib ada di baris pertama.',
+    )
   }
   const out: ParsedRow[] = []
   rows.slice(1).forEach((r, i) => {
@@ -98,11 +100,7 @@ export function classifyImportRows(
 }
 
 export function templateWorkbook(): XLSX.WorkBook {
-  const ws = XLSX.utils.aoa_to_sheet([
-    [...TEMPLATE_HEADERS],
-    ['Ahmad Fauzi', 'L'],
-    ['Citra Dewi', 'P'],
-  ])
+  const ws = XLSX.utils.aoa_to_sheet([[...TEMPLATE_HEADERS], ['Ahmad Fauzi', 'L'], ['Citra Dewi', 'P']])
   ws['!cols'] = [{ wch: 30 }, { wch: 16 }]
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, 'Anggota')

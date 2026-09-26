@@ -47,8 +47,9 @@ export interface CategorySummary {
   name: string
   slug: string
   pin_enabled: boolean
-  session_id: string
-  session_label: string
+  /** null bila kategori tidak memiliki sesi berjalan. */
+  session_id: string | null
+  session_label: string | null
   total: number
   present: number
   total_l: number
@@ -56,7 +57,7 @@ export interface CategorySummary {
   total_p: number
   present_p: number
   is_active: boolean
-  session_date: string
+  session_date: string | null
   session_note: string | null
 }
 

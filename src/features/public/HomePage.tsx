@@ -8,7 +8,11 @@ import { fetchSummaries } from './api'
 
 export function HomePage() {
   const qc = useQueryClient()
-  const { data, isPending, isError, refetch } = useQuery({ queryKey: ['summaries'], queryFn: fetchSummaries, staleTime: 0 })
+  const { data, isPending, isError, refetch } = useQuery({
+    queryKey: ['summaries'],
+    queryFn: fetchSummaries,
+    staleTime: 0,
+  })
 
   useRealtime('home', [{ table: 'attendance' }, { table: 'sessions' }], () =>
     qc.invalidateQueries({ queryKey: ['summaries'] }),
@@ -22,7 +26,11 @@ export function HomePage() {
         {isError && (
           <div className="rounded-2xl bg-white p-5 text-center shadow-sm">
             <p>Gagal memuat data. Periksa koneksi internet.</p>
-            <button type="button" onClick={() => refetch()} className="mt-3 min-h-12 rounded-xl bg-brand-700 px-5 font-semibold text-white">
+            <button
+              type="button"
+              onClick={() => refetch()}
+              className="mt-3 min-h-12 rounded-xl bg-brand-700 px-5 font-semibold text-white"
+            >
               Coba lagi
             </button>
           </div>
@@ -45,23 +53,34 @@ export function HomePage() {
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <h2 className="text-lg font-bold break-words">
-                        {c.name} {c.pin_enabled && <span aria-label="Memakai PIN" title="Memakai PIN">🔒</span>}
+                        {c.name}{' '}
+                        {c.pin_enabled && (
+                          <span aria-label="Memakai PIN" title="Memakai PIN">
+                            🔒
+                          </span>
+                        )}
                       </h2>
-                      <p className="text-muted">{c.session_label}</p>
+                      <p className="text-muted">{c.session_label ?? 'Belum ada sesi berjalan'}</p>
                     </div>
-                    <span className="shrink-0 text-3xl font-bold tabular-nums text-brand-700">{all.percent}%</span>
+                    {c.session_id && (
+                      <span className="shrink-0 text-3xl font-bold tabular-nums text-brand-700">{all.percent}%</span>
+                    )}
                   </div>
-                  <div className="mt-3">
-                    <ProgressBar percent={all.percent} />
-                  </div>
-                  <div className="mt-2 flex flex-wrap justify-between gap-x-4 text-muted">
-                    <span>
-                      {c.present}/{c.total} hadir
-                    </span>
-                    <span className="tabular-nums">
-                      L {stat(c.present_l, c.total_l).percent}% · P {stat(c.present_p, c.total_p).percent}%
-                    </span>
-                  </div>
+                  {c.session_id && (
+                    <>
+                      <div className="mt-3">
+                        <ProgressBar percent={all.percent} />
+                      </div>
+                      <div className="mt-2 flex flex-wrap justify-between gap-x-4 text-muted">
+                        <span>
+                          {c.present}/{c.total} hadir
+                        </span>
+                        <span className="tabular-nums">
+                          L {stat(c.present_l, c.total_l).percent}% · P {stat(c.present_p, c.total_p).percent}%
+                        </span>
+                      </div>
+                    </>
+                  )}
                 </Link>
               </li>
             )

@@ -1,4 +1,4 @@
-import { monthKey } from './sessionLabel'
+import { inRange, type DateRange } from './dateRange'
 import { computeStats, percent, stat, type Stats } from './stats'
 import type { Category, Member, Session, Status } from './types'
 
@@ -124,26 +124,28 @@ export function memberRecap(data: ReportData, sessionIds: readonly string[]): Me
   return { statuses: visibleStatuses(data.statuses, used), rows }
 }
 
-/** Bulan (YYYY-MM, dari tanggal sesi) yang memiliki sesi, terbaru dulu. */
-export function availableMonths(sessions: readonly Session[]): string[] {
-  return [...new Set(sessions.map((s) => monthKey(s.session_date)))].sort().reverse()
+/** Sesi bertanggal di dalam rentang, urut tanggal lalu waktu dibuka. */
+export function sessionsInRange(sessions: readonly Session[], range: DateRange): Session[] {
+  return sessions
+    .filter((s) => inRange(s.session_date, range))
+    .sort((a, b) => a.session_date.localeCompare(b.session_date) || a.started_at.localeCompare(b.started_at))
 }
 
-export interface MonthRecap {
-  month: string
-  /** Sesi bertanggal di bulan itu, urut tanggal. */
+export interface RangeRecap {
+  range: DateRange
+  /** Sesi bertanggal di dalam rentang, urut tanggal. */
   sessions: Session[]
   /** Jumlah isian anggota-sesi per status × jenis kelamin. */
   rows: RecapRow[]
   /** Persentase dari isian anggota-sesi (hadir ÷ seluruh anggota-sesi). */
   stats: Stats
   members: MemberRecap
+  /** Rekap sesi tunggal (daftar nama + status) bila rentang mencakup tepat satu sesi. */
+  single: SessionRecap | null
 }
 
-export function monthRecap(data: ReportData, month: string): MonthRecap {
-  const sessions = data.sessions
-    .filter((s) => monthKey(s.session_date) === month)
-    .sort((a, b) => a.session_date.localeCompare(b.session_date) || a.started_at.localeCompare(b.started_at))
+export function rangeRecap(data: ReportData, range: DateRange): RangeRecap {
+  const sessions = sessionsInRange(data.sessions, range)
   const present = presentIds(data.statuses)
   const used = new Set<string>()
   const counts = new Map<string, RecapRow>()
@@ -179,7 +181,7 @@ export function monthRecap(data: ReportData, month: string): MonthRecap {
   }))
 
   return {
-    month,
+    range,
     sessions,
     rows: [...rows, belum],
     stats: {
@@ -191,5 +193,6 @@ export function monthRecap(data: ReportData, month: string): MonthRecap {
       data,
       sessions.map((s) => s.id),
     ),
+    single: sessions.length === 1 ? sessionRecap(data, sessions[0].id) : null,
   }
 }

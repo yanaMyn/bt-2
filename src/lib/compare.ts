@@ -1,3 +1,4 @@
+import { inRange, type DateRange } from './dateRange'
 import { stat } from './stats'
 
 /** Baris view session_stats. */
@@ -26,7 +27,7 @@ export interface CompareItem {
   percent: number | null
   present: number
   total: number
-  /** Label sesi (per sesi) atau jumlah sesi (per bulan). */
+  /** Jumlah sesi yang digabung, mis. "3 sesi". */
   detail: string | null
 }
 
@@ -50,50 +51,20 @@ function byCategory(stats: readonly SessionStatRow[]): Map<string, SessionStatRo
   return map
 }
 
-/** offset 0 = sesi aktif, 1 = satu sesi sebelumnya, dst. (dihitung mundur per kategori). */
-export function compareBySession(
+/** % hadir tiap kategori dari gabungan sesinya yang bertanggal di dalam rentang. */
+export function compareByRange(
   categories: readonly CompareCategory[],
   stats: readonly SessionStatRow[],
-  offset: number,
+  range: DateRange,
 ): CompareItem[] {
   const grouped = byCategory(stats)
   return sortItems(
     categories.map((category) => {
-      const sessions = (grouped.get(category.id) ?? []).sort(
-        (a, b) =>
-          Number(a.closed_at !== null) - Number(b.closed_at !== null) || b.started_at.localeCompare(a.started_at),
-      )
-      const s = sessions[offset]
-      if (!s) return { category, percent: null, present: 0, total: 0, detail: null }
-      return {
-        category,
-        percent: stat(s.present, s.total).percent,
-        present: s.present,
-        total: s.total,
-        detail: s.label,
-      }
-    }),
-  )
-}
-
-export function compareByMonth(
-  categories: readonly CompareCategory[],
-  stats: readonly SessionStatRow[],
-  month: string,
-): CompareItem[] {
-  const grouped = byCategory(stats)
-  return sortItems(
-    categories.map((category) => {
-      const sessions = (grouped.get(category.id) ?? []).filter((s) => s.month === month)
+      const sessions = (grouped.get(category.id) ?? []).filter((s) => inRange(s.session_date, range))
       if (sessions.length === 0) return { category, percent: null, present: 0, total: 0, detail: null }
       const present = sessions.reduce((n, s) => n + s.present, 0)
       const total = sessions.reduce((n, s) => n + s.total, 0)
       return { category, percent: stat(present, total).percent, present, total, detail: `${sessions.length} sesi` }
     }),
   )
-}
-
-/** Jumlah maksimum sesi yang dimiliki satu kategori (untuk pilihan "N sesi sebelumnya"). */
-export function maxSessionCount(stats: readonly SessionStatRow[]): number {
-  return Math.max(0, ...[...byCategory(stats).values()].map((l) => l.length))
 }

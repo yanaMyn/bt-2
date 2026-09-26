@@ -1,5 +1,6 @@
 import * as XLSX from 'xlsx'
-import type { MemberRecap, MonthRecap, SessionRecap } from './reports'
+import { rangeLabel } from './dateRange'
+import type { MemberRecap, RangeRecap, SessionRecap } from './reports'
 import type { Status } from './types'
 
 export function fileSafe(s: string): string {
@@ -61,12 +62,15 @@ export function downloadSheets(fileName: string, sheets: { name: string; rows: (
   XLSX.writeFile(wb, `${fileSafe(fileName)}.xlsx`)
 }
 
-export function monthRecapSheets(recap: MonthRecap): { name: string; rows: (string | number)[][] }[] {
+/** Rekap tanggal/rentang: sheet Rekap (+ daftar sesi & catatan), Per Anggota, dan Status Anggota bila satu sesi. */
+export function rangeRecapSheets(recap: RangeRecap): { name: string; rows: (string | number)[][] }[] {
   const { stats } = recap
-  return [
+  const sheets = [
     {
       name: 'Rekap',
       rows: [
+        ['Periode', rangeLabel(recap.range)],
+        [],
         ['Status (jumlah isian)', 'Laki-laki', 'Perempuan', 'Total'],
         ...recap.rows.map((r) => [r.label, r.L, r.P, r.total]),
         ['% Hadir', `${stats.L.percent}%`, `${stats.P.percent}%`, `${stats.all.percent}%`],
@@ -81,6 +85,8 @@ export function monthRecapSheets(recap: MonthRecap): { name: string; rows: (stri
         ...recap.sessions.map((s) => [s.label, s.note ?? '']),
       ],
     },
-    { name: 'Anggota', rows: memberRecapSheet(recap.members) },
+    { name: 'Per Anggota', rows: memberRecapSheet(recap.members) },
   ]
+  if (recap.single) sheets.push({ ...sessionRecapSheets(recap.single)[1], name: 'Status Anggota' })
+  return sheets
 }

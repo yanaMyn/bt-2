@@ -11,6 +11,14 @@ export function readableText(hex: string): string {
 
 /** Palet preset untuk status. */
 export const STATUS_COLORS = [
-  '#16a34a', '#0d9488', '#2563eb', '#7c3aed', '#db2777',
-  '#dc2626', '#ea580c', '#eab308', '#64748b', '#78350f',
+  '#16a34a',
+  '#0d9488',
+  '#2563eb',
+  '#7c3aed',
+  '#db2777',
+  '#dc2626',
+  '#ea580c',
+  '#eab308',
+  '#64748b',
+  '#78350f',
 ]

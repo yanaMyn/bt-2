@@ -7,7 +7,7 @@ import { Button, Card, ConfirmDialog, ErrorText, Field, inputClass } from '../..
 import { STATUS_COLORS } from '../../lib/color'
 import { errorMessage } from '../../lib/errors'
 import type { Category, Status } from '../../lib/types'
-import { createStatus, deleteStatus, listStatuses, updateStatus } from './api'
+import { createStatus, deleteStatus, getResetStatusId, listStatuses, setResetStatus, updateStatus } from './api'
 
 function statusError(e: unknown) {
   return (e as { code?: string })?.code === '23505'
@@ -20,11 +20,22 @@ export function CategoryStatusesTab({ category }: { category: Category }) {
   const toast = useToast()
   const key = ['admin', 'statuses', category.id]
   const { data, isPending, error } = useQuery({ queryKey: key, queryFn: () => listStatuses(category.id) })
+  const resetKey = ['admin', 'reset-status', category.id]
+  const { data: resetStatusId } = useQuery({ queryKey: resetKey, queryFn: () => getResetStatusId(category.id) })
+  const saveResetStatus = useMutation({
+    mutationFn: (statusId: string | null) => setResetStatus(category.id, statusId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: resetKey })
+      toast({ message: 'Status otomatis disimpan' })
+    },
+    onError: (e) => toast({ tone: 'error', message: errorMessage(e) }),
+  })
   const [editing, setEditing] = useState<Status | 'new' | null>(null)
   const [deleting, setDeleting] = useState<Status | null>(null)
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: key })
+    void qc.invalidateQueries({ queryKey: ['admin', 'reset-status', category.id] })
     void qc.invalidateQueries({ queryKey: ['admin', 'categories'] })
     void qc.invalidateQueries({ queryKey: ['admin', 'report', category.id] })
     void qc.invalidateQueries({ queryKey: ['summaries'] })
@@ -112,6 +123,28 @@ export function CategoryStatusesTab({ category }: { category: Category }) {
         </ul>
       </Card>
 
+      <Card>
+        <label className="block">
+          <span className="block font-bold">Status otomatis saat sesi diakhiri</span>
+          <span className="mb-2 block text-sm text-muted">
+            Anggota yang belum mengisi saat sesi diakhiri akan dicatat dengan status ini.
+          </span>
+          <select
+            className={inputClass}
+            value={resetStatusId ?? ''}
+            disabled={resetStatusId === undefined || saveResetStatus.isPending}
+            onChange={(e) => saveResetStatus.mutate(e.target.value || null)}
+          >
+            <option value="">Tidak ada (tetap "Belum")</option>
+            {active.map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </Card>
+
       {archived.length > 0 && (
         <Card>
           <p className="font-bold">Status terarsip</p>
@@ -195,7 +228,12 @@ function StatusForm({
     <BottomSheet title={status ? 'Ubah status' : 'Status baru'} onClose={onClose}>
       <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <Field label="Label">
-          <input className={inputClass} value={label} onChange={(e) => setLabel(e.target.value)} placeholder="mis. Hadir" />
+          <input
+            className={inputClass}
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder="mis. Hadir"
+          />
         </Field>
         <fieldset>
           <legend className="mb-1 font-medium">Warna</legend>

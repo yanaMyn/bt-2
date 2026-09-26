@@ -32,6 +32,25 @@ Admin SHALL dapat menambah, mengubah (label, warna, urutan, flag dihitung hadir)
 - **WHEN** admin menambah status berlabel sama dengan status aktif lain di kategori yang sama
 - **THEN** sistem menolak dan menampilkan pesan validasi
 
+### Requirement: Status otomatis saat sesi diakhiri
+Setiap kategori SHALL memiliki pengaturan "status otomatis saat sesi diakhiri" yang berisi salah satu status aktif kategori itu atau "Tidak ada". Kategori baru SHALL memakai status bawaan "Alpa". Hanya status aktif milik kategori yang sama yang boleh dipilih. Bila status yang dipilih diarsipkan atau dihapus, pengaturan SHALL kembali menjadi "Tidak ada".
+
+#### Scenario: Default kategori baru
+- **WHEN** admin membuat kategori baru
+- **THEN** status otomatis saat sesi diakhiri kategori itu adalah "Alpa"
+
+#### Scenario: Mengganti status otomatis
+- **WHEN** admin memilih "Izin" sebagai status otomatis saat sesi diakhiri di kategori "Kajian"
+- **THEN** saat sesi "Kajian" berikutnya diakhiri, anggota yang belum mengisi dicatat "Izin"
+
+#### Scenario: Status otomatis diarsipkan
+- **WHEN** admin menghapus status "Alpa" yang sudah terpakai dan sedang menjadi status otomatis saat sesi diakhiri
+- **THEN** "Alpa" diarsipkan dan status otomatis saat sesi diakhiri menjadi "Tidak ada"
+
+#### Scenario: Status kategori lain ditolak
+- **WHEN** klien mencoba menjadikan status milik kategori lain sebagai status otomatis saat sesi diakhiri
+- **THEN** server menolak perubahan tersebut
+
 ### Requirement: Arsip status yang sudah dipakai
 Saat admin menghapus status yang sudah pernah dipakai di catatan kehadiran mana pun, sistem SHALL mengarsipkannya alih-alih menghapus permanen. Status terarsip SHALL NOT muncul sebagai pilihan pengisian, tetapi SHALL tetap tampil di daftar dan laporan untuk catatan yang memakainya. Status yang belum pernah dipakai SHALL dihapus permanen.
 

@@ -31,7 +31,7 @@ export function CategoryPage() {
   // Dinaikkan saat PIN disimpan/dihapus agar gerbang PIN dievaluasi ulang.
   const [, setPinVersion] = useState(0)
 
-  const sessionId = data?.session.id
+  const sessionId = data?.session?.id
   useRealtime(
     data ? `category:${data.category.id}` : null,
     [{ table: 'attendance' }, { table: 'sessions', filter: `category_id=eq.${data?.category.id}` }],
@@ -122,6 +122,9 @@ export function CategoryPage() {
               ? 'Kategori ini sekarang memakai PIN. Masukkan PIN.'
               : 'PIN sudah berubah. Masukkan PIN baru.',
         })
+      } else if (code === 'NO_ACTIVE_SESSION') {
+        void qc.invalidateQueries({ queryKey: key })
+        toast({ tone: 'error', message: 'Sesi sudah diakhiri. Status tidak disimpan.' })
       } else {
         toast({ tone: 'error', message: `Gagal menyimpan. ${errorMessage(e)}` })
       }
@@ -134,8 +137,8 @@ export function CategoryPage() {
     <div className="min-h-dvh pb-24">
       <PublicHeader
         title={category.name}
-        subtitle={data.session.label}
-        note={data.session.note}
+        subtitle={data.session?.label ?? 'Belum ada sesi berjalan'}
+        note={data.session?.note}
         left={
           <Link to="/" className="-ml-2 mb-1 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-brand-100">
             ‹ Semua kategori
@@ -143,7 +146,12 @@ export function CategoryPage() {
         }
       />
       <main className="mx-auto max-w-xl px-4">
-        {locked ? (
+        {!data.session ? (
+          <section className="mt-4 rounded-2xl bg-white p-6 text-center shadow-sm ring-1 ring-black/5">
+            <p className="text-lg font-semibold">Sesi sudah diakhiri.</p>
+            <p className="mt-1 text-muted">Tunggu sesi berikutnya dari pengurus.</p>
+          </section>
+        ) : locked ? (
           <PinPad
             categoryId={category.id}
             onSuccess={(pin) => {
@@ -203,7 +211,7 @@ export function CategoryPage() {
         )}
       </main>
 
-      {sheetMember && !locked && (
+      {sheetMember && !locked && data.session && (
         <StatusSheet
           member={sheetMember}
           statuses={data.statuses}

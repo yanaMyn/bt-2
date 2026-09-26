@@ -29,7 +29,8 @@ React 18 + Vite + TypeScript + Tailwind CSS + React Router. Data fetching dengan
 ### D2. Model data
 
 ```
-categories(id, name UNIQUE, slug UNIQUE, pin_enabled bool, pin text NULL /* 4 digit, lihat D5 */, created_at)
+categories(id, name UNIQUE, slug UNIQUE, pin_enabled bool, pin text NULL /* 4 digit, lihat D5 */, is_active bool,
+           reset_status_id FK statuses NULL /* D11d */, created_at)
 statuses(id, category_id FK CASCADE, label, color, sort_order, counts_as_present bool,
          archived_at NULL)            -- UNIQUE(category_id, lower(label)) WHERE archived_at IS NULL
 members(id, name, gender CHECK IN ('L','P'), created_at)
@@ -96,6 +97,14 @@ Query per kategori + sesi mengambil attendance, snapshot/keanggotaan, status (te
 ### D11c. Tanggal & catatan sesi
 Label bebas diganti `session_date` (dipilih dari kalender) + `note` opsional. `label` menjadi kolom generated dari `format_session_date(session_date)` ("Sabtu, 26 September 2026"; fungsi immutable dengan nama hari/bulan Indonesia), sehingga semua kode yang menampilkan `label` tetap bekerja dan label tidak bisa diketik bebas. Bulan untuk rekap/grafik = bulan `session_date` (bukan `started_at`), karena tanggal sesi adalah tanggal kegiatan yang dipilih admin. Urutan "sesi aktif / N sebelumnya" tetap mengikuti siklus reset (`started_at`), karena sesi aktif selalu yang terakhir dibuka. Migrasi mengisi `session_date` dari `started_at` (WIB) dan memindahkan label lama yang bukan label bawaan ke `note`. `reset_category(p_category_id, p_date, p_note)` menggantikan versi berlabel; view `category_summary` & `session_stats` dibuat ulang karena bergantung pada kolom `label`.
 *Alternatif:* tetap label bebas + validasi format — rawan tidak seragam, yang justru dikeluhkan.
+
+### D11d. Laporan berbasis kalender & status otomatis saat reset
+- Laporan tidak lagi memilih sesi tunggal atau bulan: semua tab memakai pemilih tanggal/rentang (dua `<input type="date">` bawaan agar kalender native di HP; mode Tanggal = dari = sampai). Satu fungsi murni `rangeRecap(data, from, to)` menggantikan `sessionRecap`-sebagai-halaman dan `monthRecap`; grafik memakai `compareByRange` di atas `session_stats` (kolom `session_date`). Mode "sesi aktif / N sebelumnya" dihapus. Parameter `dari`/`sampai` disimpan di URL.
+- `categories.reset_status_id` (FK ke `statuses`, `on delete set null`) diatur lewat RPC `set_reset_status` yang memvalidasi status aktif milik kategori yang sama; `delete_status` mengosongkannya bila status itu diarsipkan. `reset_category` menulis status tersebut untuk anggota snapshot yang belum memiliki isian, di dalam transaksi yang sama sebelum sesi ditutup. Migrasi mengisi pengaturan dengan status aktif berlabel "Alpa" bila ada.
+*Alternatif:* mencari status berlabel "Alpa" saat reset — rapuh karena label bisa diganti admin.
+
+### D11e. Akhiri sesi & buat sesi baru terpisah
+"Reset kehadiran" dipecah menjadi dua RPC: `end_session(p_category_id)` (isi status otomatis, snapshot, tutup) dan `start_session(p_category_id, p_date, p_note)` (menolak `SESSION_ALREADY_ACTIVE` bila masih ada sesi aktif). Invarian berubah dari "tepat satu" menjadi "paling banyak satu" sesi aktif (unique index parsial tetap). `set_attendance` menolak `NO_ACTIVE_SESSION`. `category_summary` memakai `left join` ke sesi aktif sehingga kategori tanpa sesi tetap tampil (kolom sesi null, `present` 0). `reset_category` dipertahankan sebagai pembungkus end+start untuk seed dan test, tidak dipakai UI.
 
 ### D12. Struktur folder
 

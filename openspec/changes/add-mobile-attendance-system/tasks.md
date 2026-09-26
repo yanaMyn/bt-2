@@ -91,8 +91,8 @@
 
 - [x] 14.1 Migrasi view `session_stats` (per sesi: total, present, month WIB); verifikasi test PGlite: angka sama dengan `sessionRecap` untuk sesi aktif & tertutup, dan sesi 30 Sep 23:00 WIB masuk September
 - [x] 14.2 Fungsi murni `monthRecap` (daftar bulan, tabel status × L/P, % hadir, tabel per anggota) dan agregasi grafik `compareCategories` (per sesi indeks N, per bulan); verifikasi test Vitest untuk skenario 30/40 = 75%, kategori tanpa sesi, dan urutan tertinggi
-- [ ] 14.3 Tab "Per bulan" di Laporan + ekspor `.xlsx`; verifikasi di browser angka sama dengan penjumlahan rekap per sesi di bulan itu dan file terbuka di Excel/Sheets
-- [ ] 14.4 Tab "Grafik" di Laporan: batang horizontal % hadir per kategori, mode per sesi (sesi aktif / N sebelumnya) dan per bulan, keterangan "tidak ada sesi" dan "Nonaktif"; verifikasi di browser di layar 360px tanpa scroll horizontal
+- [x] 14.3 ~~Tab "Per bulan" di Laporan~~ — digantikan tab Rekap berbasis kalender (16.3) sebelum diverifikasi
+- [x] 14.4 ~~Tab "Grafik" mode per sesi/per bulan~~ — digantikan grafik berbasis kalender (16.3) sebelum diverifikasi
 
 ## 15. Feedback: tanggal sesi dari kalender + catatan
 
@@ -101,4 +101,31 @@
 - [ ] 15.3 Admin: dialog reset dengan kalender (default hari ini) + catatan dan pratinjau label; riwayat sesi menampilkan catatan dan "Ubah tanggal/catatan" lewat kalender; laporan menampilkan catatan; verifikasi di browser
 - [ ] 15.4 Halaman kategori publik menampilkan label tanggal + catatan sesi aktif; verifikasi di browser
 - [x] 15.5 Perbarui `supabase/seed.sql` ke skema tanggal sesi; verifikasi test PGlite seed
+
+## 16. Feedback: otomatis Alpa saat reset & laporan berbasis kalender
+
+- [x] 16.1 Migrasi `categories.reset_status_id` + RPC `set_reset_status`, isi awal dari status "Alpa", `create_category` mengatur Alpa, `delete_status` mengosongkan bila diarsipkan, `reset_category` mengisi anggota snapshot yang belum mengisi; verifikasi test PGlite: reset mengisi Alpa hanya untuk yang belum mengisi, "Tidak ada" tetap Belum, status kategori lain ditolak, arsip mengosongkan pengaturan
+- [x] 16.2 Fungsi murni `rangeRecap`, `compareByRange`, preset tanggal (hari ini/bulan ini/bulan lalu/semua), sesi terdekat, label rentang untuk nama file; verifikasi test Vitest (75% rentang, satu sesi, tanpa sesi, preset di akhir bulan)
+- [ ] 16.3 Laporan: komponen pemilih Tanggal/Rentang dengan kalender & preset; tab Rekap (gabungan + daftar status bila satu sesi + sesi terdekat bila kosong), Per anggota, Grafik; hapus tab Per sesi/Per bulan; ekspor; verifikasi di browser di layar 360px
+- [ ] 16.4 Admin: pengaturan "Status otomatis saat reset" di tab Status dan jumlah anggota yang akan dicatat otomatis di dialog reset; verifikasi di browser reset mengubah "Belum" menjadi Alpa di laporan sesi yang ditutup
+
+## 17. Feedback: pisahkan "Akhiri sesi" dan "Buat sesi baru"
+
+- [x] 17.1 Migrasi: RPC `end_session` & `start_session`, `reset_category` menjadi pembungkus, `set_attendance` menolak `NO_ACTIVE_SESSION`, `category_summary` left join sesi aktif; verifikasi test PGlite: akhiri mengisi Alpa & meninggalkan kategori tanpa sesi, pengisian ditolak, sesi kedua ditolak, kategori tanpa sesi tetap di ringkasan
+- [ ] 17.2 Admin tab Sesi: tombol "Buat sesi baru" terpisah (kalender + catatan, nonaktif bila ada sesi aktif), "Akhiri sesi" di baris sesi aktif di sebelah "Ubah tanggal/catatan" dengan dialog jumlah Alpa; hapus kartu "Reset kehadiran"; verifikasi di browser
+- [ ] 17.3 Publik: beranda "Belum ada sesi berjalan" & halaman kategori "Sesi sudah diakhiri…" saat tanpa sesi aktif; verifikasi di browser
+
+## 18. Feedback: aksi massal di tab Anggota
+
+- [x] 18.1 Migrasi RPC admin `remove_members_from_category`, `delete_members`, `members_with_history` (array id, atomik); verifikasi test PGlite: keluarkan massal, hapus massal beserta riwayat, hitung riwayat, anon ditolak
+- [ ] 18.2 UI pilih banyak (centang per baris, "Pilih semua" hasil pencarian, bilah aksi "N dipilih") di tab Anggota kategori (Keluarkan / Hapus orang) dan menu Anggota (Hapus orang), konfirmasi ketik "HAPUS" bila ada riwayat; verifikasi di browser
+
+## 19. Feedback: pagination daftar anggota admin
+
+- [x] 19.1 Helper murni `paginate` (potong halaman, jumlah halaman, rentang "26–50 dari 120", halaman di luar batas dijepit) dan penyimpanan ukuran halaman per perangkat; verifikasi test Vitest
+- [x] 19.2 Komponen pagination (10/25/50, sebelumnya/berikutnya, keterangan posisi) di tab Anggota kategori & menu Anggota; "Pilih semua" untuk seluruh hasil pencarian; kembali ke halaman 1 saat cari/ganti ukuran; verifikasi di browser
+
+## 20. Feedback: filter kategori di menu Anggota
+
+- [ ] 20.1 Fungsi murni `filterMembers` (nama + kategori / tanpa kategori) dan dropdown filter di menu Anggota (tersimpan di URL, reset ke halaman 1); verifikasi test Vitest dan di browser
 

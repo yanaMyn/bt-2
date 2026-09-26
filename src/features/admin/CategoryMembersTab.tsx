@@ -10,9 +10,13 @@ import {
   addMemberToCategory,
   importMembers,
   listCategoryMembers,
+  deleteMembers,
   listMembers,
   removeMemberFromCategory,
+  removeMembersFromCategory,
 } from './api'
+import { BulkBar, BulkDeleteDialog, RowCheckbox, SelectAllRow, useSelection } from './bulk'
+import { Pagination, usePagination } from './Pagination'
 import { GenderPicker } from './GenderPicker'
 
 const norm = (s: string) => s.trim().toLocaleLowerCase('id')
@@ -41,16 +45,36 @@ export function CategoryMembersTab({ category }: { category: Category }) {
     },
   })
 
-  const filtered = useMemo(
-    () => (data ?? []).filter((m) => norm(m.name).includes(norm(search))),
-    [data, search],
-  )
+  const filtered = useMemo(() => (data ?? []).filter((m) => norm(m.name).includes(norm(search))), [data, search])
+
+  const selection = useSelection(useMemo(() => (data ?? []).map((m) => m.id), [data]))
+  const pager = usePagination(filtered, search)
+  const selectedIds = [...selection.selected]
+  const [bulk, setBulk] = useState<'remove' | 'delete' | null>(null)
+  const bulkRemove = useMutation({
+    mutationFn: () => removeMembersFromCategory(category.id, selectedIds),
+    onSuccess: (n) => {
+      setBulk(null)
+      selection.clear()
+      refresh()
+      toast({ message: `${n} orang dikeluarkan dari ${category.name}` })
+    },
+  })
+  const bulkDelete = useMutation({
+    mutationFn: () => deleteMembers(selectedIds),
+    onSuccess: (n) => {
+      setBulk(null)
+      selection.clear()
+      refresh()
+      toast({ message: `${n} orang dihapus` })
+    },
+  })
 
   if (isPending) return <p className="text-muted">Memuat…</p>
   if (error) return <ErrorText>{errorMessage(error)}</ErrorText>
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className={`flex flex-col gap-4 ${selection.selected.size ? 'pb-24' : ''}`}>
       <div className="flex flex-col gap-2 sm:flex-row">
         <input
           type="search"
@@ -79,19 +103,78 @@ export function CategoryMembersTab({ category }: { category: Category }) {
         ) : filtered.length === 0 ? (
           <p className="p-4 text-muted">Nama tidak ditemukan.</p>
         ) : (
-          <ul className="divide-y divide-gray-100">
-            {filtered.map((m) => (
-              <li key={m.id} className="flex items-center gap-3 px-4 py-2">
-                <span className="min-w-0 flex-1 break-words">{m.name}</span>
-                <span className="w-6 text-center text-muted">{m.gender}</span>
-                <Button variant="ghost" className="text-red-700" onClick={() => setRemoving(m)}>
-                  Keluarkan
-                </Button>
-              </li>
-            ))}
-          </ul>
+          <>
+            <SelectAllRow
+              visibleIds={filtered.map((m) => m.id)}
+              selected={selection.selected}
+              onToggle={() => selection.toggleAll(filtered.map((m) => m.id))}
+            />
+            <ul className="divide-y divide-gray-100">
+              {pager.items.map((m) => (
+                <li key={m.id} className="flex items-center gap-3 px-4 py-2">
+                  <RowCheckbox
+                    checked={selection.has(m.id)}
+                    label={`Pilih ${m.name}`}
+                    onChange={() => selection.toggle(m.id)}
+                  />
+                  <span className="min-w-0 flex-1 break-words">{m.name}</span>
+                  <span className="w-6 text-center text-muted">{m.gender}</span>
+                  <Button variant="ghost" className="text-red-700" onClick={() => setRemoving(m)}>
+                    Keluarkan
+                  </Button>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </Card>
+
+      <Pagination
+        page={pager.page}
+        pageCount={pager.pageCount}
+        first={pager.first}
+        last={pager.last}
+        total={pager.total}
+        size={pager.size}
+        onPage={pager.setPage}
+        onSize={pager.setSize}
+      />
+
+      <BulkBar count={selection.selected.size} onClear={selection.clear}>
+        <Button variant="secondary" onClick={() => setBulk('remove')}>
+          Keluarkan dari kategori
+        </Button>
+        <Button variant="danger" onClick={() => setBulk('delete')}>
+          Hapus orang
+        </Button>
+      </BulkBar>
+      {bulk === 'remove' && (
+        <ConfirmDialog
+          title={`Keluarkan ${selectedIds.length} orang dari ${category.name}?`}
+          message="Mereka tidak lagi tampil di kategori ini. Riwayat sesi yang sudah ditutup tetap ada di laporan, dan keanggotaan di kategori lain tidak berubah."
+          confirmLabel={`Keluarkan ${selectedIds.length} orang`}
+          danger
+          busy={bulkRemove.isPending}
+          error={bulkRemove.error && errorMessage(bulkRemove.error)}
+          onConfirm={() => bulkRemove.mutate()}
+          onClose={() => {
+            setBulk(null)
+            bulkRemove.reset()
+          }}
+        />
+      )}
+      {bulk === 'delete' && (
+        <BulkDeleteDialog
+          ids={selectedIds}
+          busy={bulkDelete.isPending}
+          error={bulkDelete.error ? errorMessage(bulkDelete.error) : null}
+          onConfirm={() => bulkDelete.mutate()}
+          onClose={() => {
+            setBulk(null)
+            bulkDelete.reset()
+          }}
+        />
+      )}
       <p className="text-sm text-muted">
         Ubah nama/jenis kelamin atau hapus orang sepenuhnya di menu{' '}
         <Link to="/admin/anggota" className="text-brand-700 underline">
