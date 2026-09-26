@@ -25,3 +25,14 @@ describe('seed.sql tanggal sesi', () => {
     expect(r.rows).toEqual([{ label: 'Sabtu, 29 Agustus 2026', note: 'Pertemuan akhir Agustus' }])
   })
 })
+
+describe('seed.sql keadaan sesi', () => {
+  it('Kajian Ahad punya sesi dijadwalkan dan belum ada sesi berjalan', async () => {
+    const db = await createDb()
+    await db.exec(readFileSync(join(import.meta.dirname, '..', 'seed.sql'), 'utf8'))
+    const r = await db.query<{ session_id: string | null; next: boolean }>(
+      `select session_id, next_opens_at > now() next from category_summary where name = 'Kajian Ahad'`,
+    )
+    expect(r.rows).toEqual([{ session_id: null, next: true }])
+  })
+})

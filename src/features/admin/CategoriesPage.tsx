@@ -4,6 +4,7 @@ import { Link } from 'react-router'
 import { Button, Card, ErrorText, inputClass } from '../../components/ui'
 import { errorMessage } from '../../lib/errors'
 import { stat } from '../../lib/stats'
+import { summarySessionText } from '../../lib/summaryText'
 import { createCategory, listCategorySummaries } from './api'
 import { InactiveBadge } from './InactiveBadge'
 
@@ -50,7 +51,10 @@ export function CategoriesPage() {
         <div className="mt-2">
           <ErrorText>{create.error && errorMessage(create.error)}</ErrorText>
         </div>
-        <p className="mt-1 text-sm text-muted">Kategori baru otomatis mendapat status Hadir, Izin, Sakit, dan Alpa.</p>
+        <p className="mt-1 text-sm text-muted">
+          Kategori baru otomatis mendapat status Hadir, Izin, Sakit, dan Alpa. Setelah dibuat, jadwalkan sesinya di tab
+          Sesi.
+        </p>
       </Card>
 
       {isPending && <p className="text-muted">Memuat…</p>}
@@ -70,7 +74,7 @@ export function CategoriesPage() {
                   {c.name} {c.pin_enabled && <span title="PIN aktif">🔒</span>} {!c.is_active && <InactiveBadge />}
                 </p>
                 <p className="text-sm text-muted">
-                  {c.total} anggota · {c.session_label ?? 'Belum ada sesi berjalan'}
+                  {c.total} anggota · {summarySessionText(c)}
                 </p>
               </div>
               <span className="shrink-0 text-xl font-bold tabular-nums text-brand-700">

@@ -23,6 +23,22 @@ Admin mengelola kategori, status, anggota, import `.xlsx`, reset kehadiran, dan 
 > Proyek paket Free di-pause otomatis bila tidak ada aktivitas sekitar 1 minggu.
 > Buka dashboard Supabase dan tekan *Restore* bila aplikasi tiba-tiba tidak bisa memuat data. Data tidak hilang.
 
+### Sesi terjadwal & penutupan otomatis (`pg_cron`)
+
+Setiap sesi punya tanggal, jam mulai–selesai (WIB), dan toleransi opsional (6/12/24 jam). Absen dibuka otomatis
+pada jam mulai dan ditutup otomatis setelah jam selesai + toleransi; anggota yang belum mengisi dicatat dengan
+"status otomatis saat sesi diakhiri" (default Alpa). Admin bisa menjadwalkan satu sesi atau berulang
+(mis. setiap Senin & Kamis sebulan) di tab **Sesi** tiap kategori.
+
+Penutupan otomatis dijalankan `pg_cron` setiap menit (migrasi `20260926000013_finalize_cron.sql`):
+
+1. Jalankan migrasi 0013 di SQL Editor. Migrasi ini mencoba mengaktifkan `pg_cron` sendiri.
+2. Cek di SQL Editor: `select jobname, schedule from cron.job;` harus menampilkan `finalize-sessions` dengan `* * * * *`.
+3. Bila belum ada: aktifkan **Database → Extensions → pg_cron**, lalu jalankan ulang migrasi 0013.
+
+Tanpa `pg_cron` aplikasi tetap aman: pengisian tetap ditolak tepat setelah batas waktu, dan Alpa dicatat saat ada
+orang tua yang mengisi atau admin membuka tab Sesi — hanya tidak tepat pada menitnya.
+
 ## 2. Jalankan lokal
 
 ```bash

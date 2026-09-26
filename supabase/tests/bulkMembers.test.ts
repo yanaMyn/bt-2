@@ -1,6 +1,6 @@
 import type { PGlite } from '@electric-sql/pglite'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { asAdmin, asAnon, createDb, errorOf } from './harness'
+import { asAdmin, asAnon, createDb, errorOf, scheduleSession } from './harness'
 
 let db: PGlite
 let a: string
@@ -10,6 +10,7 @@ let ids: Record<string, string>
 beforeEach(async () => {
   db = await createDb()
   a = (await asAdmin(db, (tx) => tx.query<{ id: string }>(`select id from create_category('Kelas A')`))).rows[0].id
+  await scheduleSession(db, a)
   b = (await asAdmin(db, (tx) => tx.query<{ id: string }>(`select id from create_category('Kajian')`))).rows[0].id
   await asAdmin(db, (tx) =>
     tx.query(`select import_members($1, $2)`, [

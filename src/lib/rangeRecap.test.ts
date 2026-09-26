@@ -27,6 +27,11 @@ function session(id: string, sessionDate: string, closed = true): Session {
     label: id,
     session_date: sessionDate,
     note: null,
+    start_time: '08:00:00',
+    end_time: '09:00:00',
+    grace_hours: 0,
+    opens_at: at,
+    closes_at: at,
     started_at: at,
     closed_at: closed ? at : null,
   }
@@ -59,9 +64,12 @@ const data: ReportData = {
   ),
 }
 
+// Waktu acuan setelah semua sesi di atas dibuka.
+const AFTER = new Date('2026-12-01T00:00:00Z')
+
 describe('rangeRecap', () => {
   it('rentang September: 10 anggota × 4 sesi, 30 hadir = 75%', () => {
-    const r = rangeRecap(data, { from: '2026-09-01', to: '2026-09-30' })
+    const r = rangeRecap(data, { from: '2026-09-01', to: '2026-09-30' }, AFTER)
     expect(r.sessions.map((s) => s.id)).toEqual(['s1', 's2', 's3', 's4'])
     expect(r.rows.map((x) => [x.label, x.total])).toEqual([
       ['Hadir', 30],
@@ -76,14 +84,22 @@ describe('rangeRecap', () => {
   })
 
   it('satu tanggal dengan satu sesi menyertakan daftar status per anggota', () => {
-    const r = rangeRecap(data, { from: '2026-09-07', to: '2026-09-07' })
+    const r = rangeRecap(data, { from: '2026-09-07', to: '2026-09-07' }, AFTER)
     expect(r.sessions.map((s) => s.id)).toEqual(['s1'])
     expect(r.single?.members.find((m) => m.member.id === 'm9')?.status?.label).toBe('Izin')
     expect(r.stats.all.percent).toBe(90)
   })
 
+  it('sesi yang belum dibuka (dijadwalkan) tidak dihitung', () => {
+    // Pada 1 Oktober 2026 pagi, sesi 5 Oktober masih dijadwalkan.
+    const r = rangeRecap(data, { from: '2026-10-01', to: '2026-10-31' }, new Date('2026-10-01T00:00:00Z'))
+    expect(r.sessions).toEqual([])
+    const later = rangeRecap(data, { from: '2026-10-01', to: '2026-10-31' }, new Date('2026-10-06T00:00:00Z'))
+    expect(later.sessions.map((s) => s.id)).toEqual(['okt'])
+  })
+
   it('tanpa sesi: rekap kosong', () => {
-    const r = rangeRecap(data, { from: '2026-09-08', to: '2026-09-08' })
+    const r = rangeRecap(data, { from: '2026-09-08', to: '2026-09-08' }, AFTER)
     expect(r.sessions).toEqual([])
     expect(r.stats.all).toEqual({ present: 0, total: 0, percent: 0 })
     expect(r.single).toBeNull()

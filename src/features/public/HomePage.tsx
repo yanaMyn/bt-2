@@ -2,8 +2,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link } from 'react-router'
 import { PublicHeader } from '../../components/PublicHeader'
 import { ProgressBar } from '../../components/StatCard'
+import { useNow } from '../../hooks/useNow'
 import { useRealtime } from '../../hooks/useRealtime'
 import { stat } from '../../lib/stats'
+import { summarySessionText } from '../../lib/summaryText'
 import { fetchSummaries } from './api'
 
 export function HomePage() {
@@ -15,6 +17,10 @@ export function HomePage() {
   })
 
   useRealtime('home', [{ table: 'attendance' }, { table: 'sessions' }], () =>
+    qc.invalidateQueries({ queryKey: ['summaries'] }),
+  )
+  // Muat ulang tepat saat sebuah sesi dibuka atau lewat batas pengisian.
+  useNow(data?.flatMap((c) => [c.session_closes_at, c.next_opens_at]) ?? [], () =>
     qc.invalidateQueries({ queryKey: ['summaries'] }),
   )
 
@@ -60,7 +66,7 @@ export function HomePage() {
                           </span>
                         )}
                       </h2>
-                      <p className="text-muted">{c.session_label ?? 'Belum ada sesi berjalan'}</p>
+                      <p className="text-muted">{summarySessionText(c)}</p>
                     </div>
                     {c.session_id && (
                       <span className="shrink-0 text-3xl font-bold tabular-nums text-brand-700">{all.percent}%</span>

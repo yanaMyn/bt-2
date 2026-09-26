@@ -20,12 +20,21 @@ export async function fetchSummaries(): Promise<CategorySummary[]> {
 
 export interface CategoryPageData {
   category: Category
-  /** null bila sesi sudah diakhiri dan belum ada sesi baru. */
+  /** Sesi berjalan menurut server; null bila tidak ada. */
   session: Session | null
+  /** Sesi dijadwalkan terdekat (untuk "Absen dibuka …"). */
+  next: Session | null
   statuses: Status[]
   members: Member[]
   /** member_id -> status_id pada sesi aktif */
   attendance: Map<string, string>
+}
+
+/** Sesi berjalan ditentukan server dari waktu (dibuka, belum lewat batas, terbaru). */
+export async function currentSession(categoryId: string): Promise<Session | null> {
+  const id = unwrap<string | null>(await supabase.rpc('current_session_id', { p_category_id: categoryId }))
+  if (!id) return null
+  return unwrap<Session | null>(await supabase.from('sessions').select('*').eq('id', id).maybeSingle())
 }
 
 export async function fetchCategoryPage(slug: string): Promise<CategoryPageData | null> {
@@ -34,12 +43,16 @@ export async function fetchCategoryPage(slug: string): Promise<CategoryPageData 
   )
   if (!category) return null
 
-  const [session, statuses, memberRows] = await Promise.all([
+  const [session, next, statuses, memberRows] = await Promise.all([
+    currentSession(category.id),
     supabase
       .from('sessions')
       .select('*')
       .eq('category_id', category.id)
       .is('closed_at', null)
+      .gt('opens_at', new Date().toISOString())
+      .order('opens_at')
+      .limit(1)
       .maybeSingle()
       .then((r) => unwrap<Session | null>(r)),
     supabase
@@ -69,6 +82,7 @@ export async function fetchCategoryPage(slug: string): Promise<CategoryPageData 
   return {
     category,
     session,
+    next,
     statuses,
     members,
     attendance: new Map(attendanceRows.map((a) => [a.member_id, a.status_id])),

@@ -1,6 +1,6 @@
 import type { PGlite, Transaction } from '@electric-sql/pglite'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { asAdmin, asAnon, createDb, errorOf } from './harness'
+import { asAdmin, asAnon, createDb, endAndOpen, errorOf, scheduleSession } from './harness'
 
 type Q = PGlite | Transaction
 
@@ -9,8 +9,11 @@ async function one<T>(q: Q, sql: string, params: unknown[] = []): Promise<T> {
   return res.rows[0]
 }
 
-async function createCategory(db: PGlite, name: string) {
-  return asAdmin(db, (tx) => one<{ id: string; slug: string }>(tx, `select * from create_category($1)`, [name]))
+/** Buat kategori; default langsung dijadwalkan satu sesi yang berjalan hari ini. */
+async function createCategory(db: PGlite, name: string, withSession = true) {
+  const cat = await asAdmin(db, (tx) => one<{ id: string; slug: string }>(tx, `select * from create_category($1)`, [name]))
+  if (withSession) await scheduleSession(db, cat.id)
+  return cat
 }
 
 async function addMembers(db: PGlite, categoryId: string, rows: { name: string; gender: string }[]) {
@@ -49,10 +52,18 @@ beforeEach(async () => {
 })
 
 describe('2.1 skema', () => {
-  it('menolak sesi aktif kedua untuk kategori yang sama', async () => {
-    const cat = await createCategory(db, 'Kelas A')
-    const err = await errorOf(db.query(`insert into sessions (category_id) values ($1)`, [cat.id]))
-    expect(err).toMatch(/sessions_one_active_key/)
+  it('menolak jam sesi yang tidak lengkap atau terbalik', async () => {
+    const cat = await createCategory(db, 'Kelas A', false)
+    for (const [start, end] of [['19:30', null], ['21:00', '19:30'], ['19:30', '19:30']]) {
+      const err = await errorOf(
+        db.query(`insert into sessions (category_id, session_date, start_time, end_time) values ($1, '2026-10-05', $2, $3)`, [
+          cat.id,
+          start,
+          end,
+        ]),
+      )
+      expect(err).toMatch(/sessions_time_pair/)
+    }
   })
 
   it('menolak jenis kelamin selain L/P dan satu status per anggota per sesi', async () => {
@@ -144,7 +155,8 @@ describe('2.2 RLS & hak akses', () => {
     const cat = await createCategory(db, 'Kelas A')
     for (const sql of [
       `select * from create_category('X')`,
-      `select reset_category('${cat.id}')`,
+      `select end_session('${cat.id}')`,
+      `select schedule_sessions('${cat.id}', '[]')`,
       `select set_category_pin('${cat.id}', false)`,
       `select import_members('${cat.id}', '[]')`,
     ]) {
@@ -154,8 +166,8 @@ describe('2.2 RLS & hak akses', () => {
 })
 
 describe('2.3 create_category & set_category_pin', () => {
-  it('membuat kategori dengan 4 status bawaan dan 1 sesi aktif bertanggal hari ini', async () => {
-    const cat = await createCategory(db, 'Kelas 1A')
+  it('membuat kategori dengan 4 status bawaan dan tanpa sesi', async () => {
+    const cat = await createCategory(db, 'Kelas 1A', false)
     expect(cat.slug).toBe('kelas-1a')
     const statuses = await db.query<{ label: string; counts_as_present: boolean }>(
       `select label, counts_as_present from statuses where category_id = $1 order by sort_order`,
@@ -167,11 +179,8 @@ describe('2.3 create_category & set_category_pin', () => {
       { label: 'Sakit', counts_as_present: false },
       { label: 'Alpa', counts_as_present: false },
     ])
-    const sessions = await db.query<{ today: boolean; note: string | null }>(
-      `select session_date = today_jakarta() today, note from sessions where category_id = $1 and closed_at is null`,
-      [cat.id],
-    )
-    expect(sessions.rows).toEqual([{ today: true, note: null }])
+    const sessions = await db.query(`select 1 from sessions where category_id = $1`, [cat.id])
+    expect(sessions.rows).toHaveLength(0)
   })
 
   it('label sesi dibentuk dari tanggal dalam bahasa Indonesia', async () => {
@@ -267,7 +276,7 @@ describe('2.4 verify_category_pin & set_attendance', () => {
   it('selalu menulis ke sesi aktif, tidak ke sesi yang sudah ditutup', async () => {
     const hadir = await statusId(db, cat.id, 'Hadir')
     const first = await setAttendance(db, cat.id, budi.id, hadir)
-    await asAdmin(db, (tx) => tx.query(`select reset_category($1, '2026-10-03')`, [cat.id]))
+    await endAndOpen(db, cat.id)
     const second = await setAttendance(db, cat.id, budi.id, await statusId(db, cat.id, 'Izin'))
     expect(second.rows[0].session_id).not.toBe(first.rows[0].session_id)
     const old = await one<{ status_id: string }>(db, `select status_id from attendance where session_id = $1`, [
@@ -306,7 +315,7 @@ describe('2.5 delete_status', () => {
   })
 })
 
-describe('2.6 reset_category', () => {
+describe('2.6 akhiri sesi & sesi baru', () => {
   it('snapshot anggota, tutup sesi, buka sesi baru; kategori lain tidak berubah', async () => {
     const a = await createCategory(db, 'Kelas A')
     const b = await createCategory(db, 'Kelas B')
@@ -319,9 +328,13 @@ describe('2.6 reset_category', () => {
     await setAttendance(db, b.id, dina.id, await statusId(db, b.id, 'Hadir'))
     const oldA = await one<{ id: string }>(db, `select id from sessions where category_id = $1`, [a.id])
 
-    const newId = await asAdmin(db, (tx) =>
-      one<{ id: string }>(tx, `select reset_category($1, '2026-10-03', ' Pekan 1 ') id`, [a.id]),
+    await asAdmin(db, (tx) => tx.query(`select end_session($1)`, [a.id]))
+    await asAdmin(db, (tx) =>
+      tx.query(`select schedule_sessions($1, '[{"date":"2026-10-03","start":"19:30","end":"21:00","note":" Pekan 1 "}]')`, [
+        a.id,
+      ]),
     )
+    const newId = await one<{ id: string }>(db, `select id from sessions where category_id = $1 and closed_at is null`, [a.id])
 
     const sessions = await db.query<{ id: string; label: string; closed: boolean; note: string | null }>(
       `select id, label, closed_at is not null closed, note from sessions where category_id = $1 order by started_at, closed_at nulls last`,
@@ -345,32 +358,29 @@ describe('2.6 reset_category', () => {
     expect(summaryB.present).toBe(1)
   })
 
-  it('tanpa tanggal memakai hari ini; catatan kosong menjadi null; catatan >200 karakter ditolak', async () => {
-    const a = await createCategory(db, 'Kelas A')
-    await asAdmin(db, (tx) => tx.query(`select reset_category($1, null, '  ')`, [a.id]))
-    const s = await one<{ today: boolean; note: string | null }>(
-      db,
-      `select session_date = today_jakarta() today, note from sessions where category_id = $1 and closed_at is null`,
-      [a.id],
-    )
-    expect(s).toEqual({ today: true, note: null })
-    const long = 'x'.repeat(201)
-    expect(await errorOf(asAdmin(db, (tx) => tx.query(`select reset_category($1, null, $2)`, [a.id, long])))).toMatch(
-      /NOTE_TOO_LONG/,
-    )
+  it('catatan kosong menjadi null; catatan >200 karakter ditolak', async () => {
+    const a = await createCategory(db, 'Kelas A', false)
+    const item = (note: string) => JSON.stringify([{ date: '2026-10-05', start: '19:30', end: '21:00', note }])
+    await asAdmin(db, (tx) => tx.query(`select schedule_sessions($1, $2)`, [a.id, item('  ')]))
+    const s = await one<{ note: string | null }>(db, `select note from sessions where category_id = $1`, [a.id])
+    expect(s.note).toBeNull()
     expect(
-      await errorOf(asAdmin(db, (tx) => tx.query(`update sessions set note = $2 where category_id = $1`, [a.id, long]))),
-    ).toMatch(/sessions_note_length/)
+      await errorOf(asAdmin(db, (tx) => tx.query(`select schedule_sessions($1, $2)`, [a.id, item('x'.repeat(201))]))),
+    ).toMatch(/NOTE_TOO_LONG/)
   })
 
-  it('admin mengubah tanggal sesi: label ikut berubah; label tidak bisa diisi langsung', async () => {
-    const a = await createCategory(db, 'Kelas A')
-    await asAdmin(db, (tx) => tx.query(`update sessions set session_date = '2026-10-01' where category_id = $1`, [a.id]))
-    const s = await one<{ label: string }>(db, `select label from sessions where category_id = $1`, [a.id])
-    expect(s.label).toBe('Kamis, 1 Oktober 2026')
-    expect(
-      await errorOf(asAdmin(db, (tx) => tx.query(`update sessions set label = 'bebas' where category_id = $1`, [a.id]))),
-    ).toMatch(/can only be updated to DEFAULT/)
+  it('mengubah tanggal lewat update_session: label ikut berubah; update langsung tidak berpengaruh', async () => {
+    const a = await createCategory(db, 'Kelas A', false)
+    await asAdmin(db, (tx) =>
+      tx.query(`select schedule_sessions($1, '[{"date":"2026-10-05","start":"19:30","end":"21:00"}]')`, [a.id]),
+    )
+    const s = await one<{ id: string }>(db, `select id from sessions where category_id = $1`, [a.id])
+    await asAdmin(db, (tx) => tx.query(`select update_session($1, '2026-10-01', '19:30', '21:00', 0, null)`, [s.id]))
+    expect((await one<{ label: string }>(db, `select label from sessions where id = $1`, [s.id])).label).toBe(
+      'Kamis, 1 Oktober 2026',
+    )
+    const direct = await asAdmin(db, (tx) => tx.query(`update sessions set note = 'x' where id = $1`, [s.id]))
+    expect(direct.affectedRows ?? 0).toBe(0)
   })
 })
 

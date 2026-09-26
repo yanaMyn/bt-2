@@ -1,6 +1,6 @@
 import type { PGlite } from '@electric-sql/pglite'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { asAdmin, asAnon, createDb, errorOf } from './harness'
+import { asAdmin, asAnon, createDb, endAndOpen, errorOf, scheduleSession } from './harness'
 
 let db: PGlite
 let cat: string
@@ -17,6 +17,7 @@ const resetStatus = async () =>
 beforeEach(async () => {
   db = await createDb()
   cat = (await asAdmin(db, (tx) => tx.query<{ id: string }>(`select id from create_category('Kelas A')`))).rows[0].id
+  await scheduleSession(db, cat)
   await asAdmin(db, (tx) =>
     tx.query(`select import_members($1, $2)`, [
       cat,
@@ -39,7 +40,7 @@ describe('16.1 status otomatis saat reset', () => {
     const ahmad = await memberId('Ahmad')
     await asAnon(db, (tx) => tx.query(`select set_attendance($1, $2, $3)`, [cat, ahmad, hadir]))
     const old = (await db.query<{ id: string }>(`select id from sessions where closed_at is null`)).rows[0].id
-    await asAdmin(db, (tx) => tx.query(`select reset_category($1)`, [cat]))
+    await endAndOpen(db, cat)
 
     const rows = await db.query<{ name: string; label: string }>(
       `select m.name, s.label from attendance a join members m on m.id = a.member_id
@@ -57,7 +58,7 @@ describe('16.1 status otomatis saat reset', () => {
 
   it('"Tidak ada" membiarkan yang belum mengisi tetap Belum', async () => {
     await asAdmin(db, (tx) => tx.query(`select set_reset_status($1, null)`, [cat]))
-    await asAdmin(db, (tx) => tx.query(`select reset_category($1)`, [cat]))
+    await endAndOpen(db, cat)
     expect((await db.query(`select 1 from attendance`)).rows).toHaveLength(0)
   })
 
@@ -79,7 +80,7 @@ describe('16.1 status otomatis saat reset', () => {
 
   it('mengarsipkan status otomatis mengosongkan pengaturan', async () => {
     const alpa = await statusId('Alpa')
-    await asAdmin(db, (tx) => tx.query(`select reset_category($1)`, [cat])) // Alpa jadi terpakai
+    await endAndOpen(db, cat) // Alpa jadi terpakai
     const r = await asAdmin(db, (tx) => tx.query<{ r: string }>(`select delete_status($1) r`, [alpa]))
     expect(r.rows[0].r).toBe('archived')
     expect(await resetStatus()).toBeNull()

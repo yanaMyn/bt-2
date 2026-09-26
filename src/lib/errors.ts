@@ -14,6 +14,12 @@ const MESSAGES: Record<string, string> = {
   NOTE_TOO_LONG: 'Catatan maksimal 200 karakter.',
   NO_ACTIVE_SESSION: 'Tidak ada sesi yang sedang berjalan.',
   SESSION_ALREADY_ACTIVE: 'Masih ada sesi berjalan. Akhiri sesi aktif dulu.',
+  INVALID_TIME: 'Jam selesai harus setelah jam mulai di hari yang sama.',
+  INVALID_GRACE: 'Toleransi harus 0, 6, 12, atau 24 jam.',
+  TOO_MANY_SESSIONS: 'Maksimal 62 sesi sekali jadwal. Persempit rentang tanggal.',
+  SESSION_FINISHED: 'Jam sesi yang sudah selesai tidak bisa diubah.',
+  SESSION_NOT_DELETABLE: 'Hanya sesi yang belum dimulai dan belum ada isian yang bisa dihapus. Gunakan "Akhiri sesi".',
+  SESSION_NOT_FOUND: 'Sesi tidak ditemukan.',
 }
 
 /** Kode error dari fungsi server (mis. "PIN_INVALID"), bila ada. */

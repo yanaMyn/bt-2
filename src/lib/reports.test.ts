@@ -18,6 +18,11 @@ const session = (id: string, closed: boolean): Session => ({
   label: id,
   session_date: '2026-01-01',
   note: null,
+  start_time: null,
+  end_time: null,
+  grace_hours: 0,
+  opens_at: null,
+  closes_at: null,
   started_at: '2026-01-01',
   closed_at: closed ? '2026-01-02' : null,
 })

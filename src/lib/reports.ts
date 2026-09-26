@@ -1,4 +1,5 @@
 import { inRange, type DateRange } from './dateRange'
+import { hasStarted } from './sessionTime'
 import { computeStats, percent, stat, type Stats } from './stats'
 import type { Category, Member, Session, Status } from './types'
 
@@ -124,10 +125,10 @@ export function memberRecap(data: ReportData, sessionIds: readonly string[]): Me
   return { statuses: visibleStatuses(data.statuses, used), rows }
 }
 
-/** Sesi bertanggal di dalam rentang, urut tanggal lalu waktu dibuka. */
-export function sessionsInRange(sessions: readonly Session[], range: DateRange): Session[] {
+/** Sesi yang sudah dibuka dan bertanggal di dalam rentang, urut tanggal lalu waktu dibuka. */
+export function sessionsInRange(sessions: readonly Session[], range: DateRange, now: Date = new Date()): Session[] {
   return sessions
-    .filter((s) => inRange(s.session_date, range))
+    .filter((s) => hasStarted(s, now) && inRange(s.session_date, range))
     .sort((a, b) => a.session_date.localeCompare(b.session_date) || a.started_at.localeCompare(b.started_at))
 }
 
@@ -144,8 +145,8 @@ export interface RangeRecap {
   single: SessionRecap | null
 }
 
-export function rangeRecap(data: ReportData, range: DateRange): RangeRecap {
-  const sessions = sessionsInRange(data.sessions, range)
+export function rangeRecap(data: ReportData, range: DateRange, now: Date = new Date()): RangeRecap {
+  const sessions = sessionsInRange(data.sessions, range, now)
   const present = presentIds(data.statuses)
   const used = new Set<string>()
   const counts = new Map<string, RecapRow>()

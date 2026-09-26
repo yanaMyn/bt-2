@@ -5,9 +5,11 @@ import { PublicHeader } from '../../components/PublicHeader'
 import { StatCard } from '../../components/StatCard'
 import { StatusPill } from '../../components/StatusPill'
 import { useToast } from '../../components/Toast'
+import { useNow } from '../../hooks/useNow'
 import { payloadValue, useRealtime } from '../../hooks/useRealtime'
 import { errorCode, errorMessage } from '../../lib/errors'
 import { clearPin, getPin, setPin } from '../../lib/pinStore'
+import { formatTimeRange, opensText } from '../../lib/sessionTime'
 import { computeStats } from '../../lib/stats'
 import type { Member } from '../../lib/types'
 import { fetchCategoryPage, setAttendance, type CategoryPageData } from './api'
@@ -41,6 +43,9 @@ export function CategoryPage() {
       }
     },
   )
+
+  // Beralih tampilan tepat saat sesi berikutnya dibuka atau sesi berjalan lewat batas.
+  useNow([data?.session?.closes_at, data?.next?.opens_at], () => void qc.invalidateQueries({ queryKey: key }))
 
   const stats = useMemo(() => {
     if (!data) return null
@@ -124,7 +129,7 @@ export function CategoryPage() {
         })
       } else if (code === 'NO_ACTIVE_SESSION') {
         void qc.invalidateQueries({ queryKey: key })
-        toast({ tone: 'error', message: 'Sesi sudah diakhiri. Status tidak disimpan.' })
+        toast({ tone: 'error', message: 'Sesi sudah selesai atau belum dibuka. Status tidak disimpan.' })
       } else {
         toast({ tone: 'error', message: `Gagal menyimpan. ${errorMessage(e)}` })
       }
@@ -137,7 +142,13 @@ export function CategoryPage() {
     <div className="min-h-dvh pb-24">
       <PublicHeader
         title={category.name}
-        subtitle={data.session?.label ?? 'Belum ada sesi berjalan'}
+        subtitle={
+          data.session
+            ? [data.session.label, formatTimeRange(data.session.start_time, data.session.end_time)]
+                .filter(Boolean)
+                .join(' · ')
+            : undefined
+        }
         note={data.session?.note}
         left={
           <Link to="/" className="-ml-2 mb-1 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-brand-100">
@@ -148,8 +159,23 @@ export function CategoryPage() {
       <main className="mx-auto max-w-xl px-4">
         {!data.session ? (
           <section className="mt-4 rounded-2xl bg-white p-6 text-center shadow-sm ring-1 ring-black/5">
-            <p className="text-lg font-semibold">Sesi sudah diakhiri.</p>
-            <p className="mt-1 text-muted">Tunggu sesi berikutnya dari pengurus.</p>
+            {data.next?.opens_at ? (
+              <>
+                <p className="text-lg font-semibold">{opensText(data.next.label, data.next.opens_at)}</p>
+                {data.next.end_time && (
+                  <p className="mt-1 text-muted">
+                    Sesi {formatTimeRange(data.next.start_time, data.next.end_time)} WIB. Halaman ini terbuka otomatis
+                    saat absen dibuka.
+                  </p>
+                )}
+                {data.next.note && <p className="mt-1 break-words text-muted">📝 {data.next.note}</p>}
+              </>
+            ) : (
+              <>
+                <p className="text-lg font-semibold">Belum ada jadwal sesi.</p>
+                <p className="mt-1 text-muted">Tunggu jadwal berikutnya dari pengurus.</p>
+              </>
+            )}
           </section>
         ) : locked ? (
           <PinPad

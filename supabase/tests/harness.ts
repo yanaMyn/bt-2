@@ -77,3 +77,33 @@ export async function errorOf(p: Promise<unknown>): Promise<string> {
   }
   throw new Error('Expected promise to reject')
 }
+
+/**
+ * Jadwalkan sesi berjam relatif terhadap hari ini (WIB) sebagai admin. dayOffset 0 = hari ini.
+ * Default 00:00–23:59:59 sehingga sesi hari ini sedang berjalan kapan pun test dijalankan.
+ */
+export async function scheduleSession(
+  db: PGlite,
+  categoryId: string,
+  opts: { dayOffset?: number; start?: string; end?: string; grace?: number; note?: string | null } = {},
+): Promise<string> {
+  const { dayOffset = 0, start = '00:00', end = '23:59:59', grace = 0, note = null } = opts
+  return asAdmin(db, async (tx) => {
+    await tx.query(
+      `select schedule_sessions($1, jsonb_build_array(jsonb_build_object(
+         'date', today_jakarta() + $2::int, 'start', $3::text, 'end', $4::text, 'grace', $5::int, 'note', $6::text)))`,
+      [categoryId, dayOffset, start, end, grace, note],
+    )
+    const r = await tx.query<{ id: string }>(
+      `select id from sessions where category_id = $1 order by started_at desc, opens_at desc nulls last limit 1`,
+      [categoryId],
+    )
+    return r.rows[0].id
+  })
+}
+
+/** Akhiri sesi berjalan lalu buka sesi baru hari ini (pengganti reset_category lama untuk test). */
+export async function endAndOpen(db: PGlite, categoryId: string, note: string | null = null): Promise<string> {
+  await asAdmin(db, (tx) => tx.query(`select end_session($1)`, [categoryId]))
+  return scheduleSession(db, categoryId, { note })
+}

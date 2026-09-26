@@ -24,6 +24,7 @@ import {
   type ReportData,
 } from '../../lib/reports'
 import { sessionTitle, todayJakarta } from '../../lib/sessionLabel'
+import { hasStarted } from '../../lib/sessionTime'
 import type { Stats } from '../../lib/stats'
 import { listCategories, listSessionStats, loadReportData } from './api'
 import { CategoryCompareChart } from './CategoryCompareChart'
@@ -115,7 +116,8 @@ export function ReportsPage() {
   )
 }
 
-const sessionDates = (data: ReportData) => data.sessions.map((s) => s.session_date)
+// Hanya sesi yang sudah dibuka; sesi dijadwalkan tidak masuk laporan.
+const sessionDates = (data: ReportData) => data.sessions.filter((s) => hasStarted(s)).map((s) => s.session_date)
 
 function RecapTable({ rows, stats, caption }: { rows: RecapRow[]; stats: Stats; caption?: string }) {
   return (

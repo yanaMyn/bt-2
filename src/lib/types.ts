@@ -38,6 +38,14 @@ export interface Session {
   /** YYYY-MM-DD */
   session_date: string
   note: string | null
+  /** "HH:MM:SS" (WIB); null untuk sesi lama tanpa jam. */
+  start_time: string | null
+  end_time: string | null
+  /** 0, 6, 12, atau 24 */
+  grace_hours: number
+  /** Jam buka & batas pengisian (jam selesai + toleransi); null untuk sesi lama tanpa jam. */
+  opens_at: string | null
+  closes_at: string | null
   started_at: string
   closed_at: string | null
 }
@@ -59,6 +67,13 @@ export interface CategorySummary {
   is_active: boolean
   session_date: string | null
   session_note: string | null
+  session_start_time: string | null
+  session_end_time: string | null
+  session_grace_hours: number | null
+  session_closes_at: string | null
+  /** Jam buka & label sesi dijadwalkan terdekat (bila ada). */
+  next_opens_at: string | null
+  next_session_label: string | null
 }
 
 export interface AttendanceRow {

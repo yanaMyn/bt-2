@@ -175,15 +175,14 @@ export interface EndPreview {
 }
 
 export async function endPreview(categoryId: string): Promise<EndPreview> {
-  const session = unwrap<Session>(
-    await supabase.from('sessions').select('*').eq('category_id', categoryId).is('closed_at', null).single(),
-  )
+  const sessionId = unwrap<string | null>(await supabase.rpc('current_session_id', { p_category_id: categoryId }))
+  if (!sessionId) throw new Error('NO_ACTIVE_SESSION')
   const [members, attendance, statusId, statuses] = await Promise.all([
     fetchAll<{ member_id: string }>((from, to) =>
       supabase.from('category_members').select('member_id').eq('category_id', categoryId).range(from, to),
     ),
     fetchAll<{ member_id: string }>((from, to) =>
-      supabase.from('attendance').select('member_id').eq('session_id', session.id).range(from, to),
+      supabase.from('attendance').select('member_id').eq('session_id', sessionId).range(from, to),
     ),
     getResetStatusId(categoryId),
     listStatuses(categoryId),
@@ -204,21 +203,51 @@ export async function endSession(categoryId: string): Promise<void> {
   unwrap(await supabase.rpc('end_session', { p_category_id: categoryId }))
 }
 
-/** Buka sesi baru bertanggal sessionDate (YYYY-MM-DD); ditolak bila masih ada sesi aktif. */
-export async function startSession(categoryId: string, sessionDate: string, note: string): Promise<void> {
-  unwrap(
-    await supabase.rpc('start_session', { p_category_id: categoryId, p_date: sessionDate, p_note: cleanNote(note) }),
+export interface SessionInput {
+  /** YYYY-MM-DD */
+  date: string
+  /** "HH:MM" */
+  start: string
+  end: string
+  grace: number
+  note: string
+}
+
+/** Jadwalkan 1–62 sesi sekaligus (atomik). */
+export async function scheduleSessions(categoryId: string, items: SessionInput[]): Promise<number> {
+  return unwrap(
+    await supabase.rpc('schedule_sessions', {
+      p_category_id: categoryId,
+      p_items: items.map((i) => ({ ...i, note: cleanNote(i.note) })),
+    }),
   )
 }
 
-/** Label sesi ikut berubah karena dibentuk server dari tanggal. */
-export async function updateSession(id: string, sessionDate: string, note: string): Promise<void> {
+/** Sesi selesai hanya boleh diubah tanggal & catatannya; jam & toleransi dikirim apa adanya. */
+export async function updateSession(
+  id: string,
+  input: { date: string; start: string | null; end: string | null; grace: number; note: string },
+): Promise<void> {
   unwrap(
-    await supabase
-      .from('sessions')
-      .update({ session_date: sessionDate, note: cleanNote(note) })
-      .eq('id', id),
+    await supabase.rpc('update_session', {
+      p_session_id: id,
+      p_date: input.date,
+      p_start: input.start,
+      p_end: input.end,
+      p_grace: input.grace,
+      p_note: cleanNote(input.note),
+    }),
   )
+}
+
+/** Hanya sesi dijadwalkan tanpa isian. */
+export async function deleteSession(id: string): Promise<void> {
+  unwrap(await supabase.rpc('delete_session', { p_session_id: id }))
+}
+
+/** Tutup sesi yang sudah lewat batas/tergantikan (cadangan bila pg_cron belum aktif). */
+export async function finalizeDueSessions(): Promise<number> {
+  return unwrap(await supabase.rpc('finalize_due_sessions'))
 }
 
 /** Semua data sebuah kategori yang dibutuhkan riwayat sesi dan laporan. */
