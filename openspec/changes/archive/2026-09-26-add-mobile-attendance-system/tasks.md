@@ -73,7 +73,7 @@
 
 - [x] 11.1 Seed data contoh `supabase/seed.sql` (2 kategori, ±20 anggota, 1 sesi tertutup) yang bisa dijalankan di SQL Editor Supabase; verifikasi test PGlite menerapkan seed tanpa error
 - [x] 11.2 Uji menyeluruh alur publik dan admin di viewport 360px (tanpa scroll horizontal, teks ≥16px, tombol status ≥56px, status berlabel teks); catat hasilnya di checklist PR
-- [ ] 11.3 README: setup Supabase (pgcrypto, migrasi, matikan signup, buat akun admin), env var, deploy Vercel (termasuk rewrite SPA di `vercel.json`); verifikasi build produksi di Vercel dapat membuka `/k/:slug` secara langsung
+- [x] 11.3 README: setup Supabase (pgcrypto, migrasi, matikan signup, buat akun admin), env var, deploy Vercel (termasuk rewrite SPA di `vercel.json`); verifikasi build produksi di Vercel dapat membuka `/k/:slug` secara langsung
 
 ## 12. Feedback uji manual: PIN 4 digit & lihat PIN
 
