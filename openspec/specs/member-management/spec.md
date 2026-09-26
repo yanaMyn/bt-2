@@ -6,75 +6,11 @@ Mengelola data orang (nama dan jenis kelamin) secara global dan keanggotaannya d
 
 ## Requirements
 
-### Requirement: Data orang global
-Admin SHALL dapat membuat, melihat, mencari, dan mengubah data orang dengan atribut nama (wajib, tidak kosong) dan jenis kelamin (L atau P). Perubahan nama atau jenis kelamin SHALL berlaku di semua kategori tempat orang tersebut tergabung.
-
-#### Scenario: Mengubah nama orang
-- **WHEN** admin mengubah nama "Budi" menjadi "Budi Santoso" dan Budi tergabung di "Kelas A" dan "Kajian"
-- **THEN** kedua kategori menampilkan "Budi Santoso"
-
-#### Scenario: Validasi jenis kelamin
-- **WHEN** admin menyimpan orang tanpa memilih jenis kelamin
-- **THEN** sistem menolak dan menampilkan pesan validasi
-
-### Requirement: Keanggotaan banyak kategori
-Satu orang SHALL dapat menjadi anggota lebih dari satu kategori, dan tidak boleh tergabung dua kali di kategori yang sama. Di halaman sebuah kategori, admin SHALL dapat menambahkan orang yang sudah ada (melalui pencarian) atau membuat orang baru sekaligus menambahkannya.
-
-#### Scenario: Menautkan orang yang sudah ada
-- **WHEN** admin di kategori "Kajian" mencari "Budi" lalu memilih Budi yang sudah ada di "Kelas A"
-- **THEN** Budi menjadi anggota "Kajian" tanpa membuat data orang baru, dan kehadirannya di kedua kategori tercatat terpisah
-
-#### Scenario: Menambah orang baru dari kategori
-- **WHEN** admin di kategori "Kelas A" memilih "Buat orang baru" dan mengisi nama serta jenis kelamin
-- **THEN** orang baru dibuat dan langsung menjadi anggota "Kelas A"
-
-#### Scenario: Keanggotaan ganda di kategori yang sama
-- **WHEN** admin menambahkan orang yang sudah menjadi anggota kategori tersebut
-- **THEN** sistem menolak dan memberi tahu bahwa orang itu sudah tergabung
-
-### Requirement: Keluarkan dari kategori berbeda dengan hapus orang
-Sistem SHALL menyediakan dua aksi terpisah: "Keluarkan dari kategori" yang hanya melepas keanggotaan dengan tetap mempertahankan riwayat kehadiran sesi lama, dan "Hapus orang" yang menghapus data orang dari seluruh sistem.
-
-#### Scenario: Keluarkan dari kategori
-- **WHEN** admin mengeluarkan Budi dari "Kelas A"
-- **THEN** Budi tidak lagi tampil di daftar "Kelas A" dan tidak dihitung di sesi aktif, tetap menjadi anggota "Kajian", dan laporan sesi lama "Kelas A" tetap menampilkan catatannya
-
-#### Scenario: Hapus orang tanpa riwayat
-- **WHEN** admin menghapus orang yang belum memiliki catatan kehadiran
-- **THEN** orang terhapus setelah konfirmasi biasa
-
-#### Scenario: Hapus orang dengan riwayat
-- **WHEN** admin menghapus orang yang sudah memiliki catatan kehadiran
-- **THEN** sistem meminta konfirmasi dengan mengetik nama orang tersebut, lalu menghapus orang beserta seluruh keanggotaan dan catatan kehadirannya
-
-### Requirement: Aksi massal anggota
-Admin SHALL dapat memilih banyak orang sekaligus di tab Anggota sebuah kategori dan di menu Anggota global, dengan kotak centang per baris dan "Pilih semua" yang berlaku untuk seluruh hasil pencarian di semua halaman. Di tab Anggota kategori tersedia aksi massal "Keluarkan dari kategori" dan "Hapus orang"; di menu Anggota global tersedia "Hapus orang". Aksi massal SHALL dijalankan atomik: semua orang terpilih diproses, atau tidak ada sama sekali bila terjadi kegagalan. Bila di antara orang yang akan dihapus ada yang memiliki riwayat kehadiran, dialog konfirmasi SHALL menyebut jumlahnya dan meminta admin mengetik "HAPUS".
-
-#### Scenario: Keluarkan banyak orang dari kategori
-- **WHEN** admin memilih 5 anggota di tab Anggota "Kelas A" lalu memilih "Keluarkan dari kategori" dan mengonfirmasi
-- **THEN** kelima orang tidak lagi menjadi anggota "Kelas A", tetap ada di kategori lain dan menu Anggota, dan riwayat sesi yang sudah ditutup tetap ada di laporan
-
-#### Scenario: Pilih semua hasil pencarian
-- **WHEN** admin mengetik "Fa" di pencarian lalu menekan "Pilih semua"
-- **THEN** semua orang yang cocok dengan pencarian terpilih, termasuk yang berada di halaman lain, dan orang yang tidak cocok tidak terpilih
-
-#### Scenario: Hapus banyak orang tanpa riwayat
-- **WHEN** admin memilih 10 orang hasil import yang salah, yang belum memiliki catatan kehadiran, lalu memilih "Hapus orang"
-- **THEN** sistem meminta konfirmasi biasa lalu menghapus kesepuluh orang dari semua kategori
-
-#### Scenario: Hapus banyak orang dengan riwayat
-- **WHEN** admin memilih 4 orang dan 2 di antaranya memiliki catatan kehadiran, lalu memilih "Hapus orang"
-- **THEN** dialog menyebut 2 orang memiliki riwayat yang akan ikut terhapus dan tombol hapus baru aktif setelah admin mengetik "HAPUS"
-
-#### Scenario: Hanya admin
-- **WHEN** klien anonim memanggil fungsi aksi massal
-- **THEN** server menolak permintaan tersebut
-
 ### Requirement: Pagination daftar anggota admin
-Daftar di tab Anggota kategori dan menu Anggota SHALL dibagi per halaman dengan pilihan 10, 25, atau 50 nama per halaman (default 25), beserta navigasi halaman sebelumnya/berikutnya dan keterangan posisi (mis. "26–50 dari 120"). Pilihan jumlah per halaman SHALL diingat di perangkat admin. Pencarian SHALL mencari di seluruh data, bukan hanya halaman yang tampil, dan mengubah kata pencarian atau jumlah per halaman SHALL kembali ke halaman 1. Pilihan kotak centang SHALL tetap tersimpan saat berpindah halaman.
+Daftar jamaah di panel admin SHALL dibagi per halaman dengan pilihan 10, 25, atau 50 nama per halaman (default 25), beserta navigasi halaman sebelumnya/berikutnya dan keterangan posisi (mis. "26–50 dari 120"). Pilihan jumlah per halaman SHALL diingat di perangkat admin. Pencarian dan filter SHALL berlaku pada seluruh data, bukan hanya halaman yang tampil, dan mengubah kata pencarian, filter, atau jumlah per halaman SHALL kembali ke halaman 1. Pilihan kotak centang SHALL tetap tersimpan saat berpindah halaman.
 
 #### Scenario: Ganti jumlah per halaman
-- **WHEN** kategori memiliki 120 anggota dan admin memilih 50 per halaman
+- **WHEN** kelompok memiliki 120 jamaah dan admin memilih 50 per halaman
 - **THEN** daftar menampilkan 50 nama, keterangan "1–50 dari 120", dan 3 halaman
 
 #### Scenario: Pencarian lintas halaman
@@ -85,17 +21,92 @@ Daftar di tab Anggota kategori dan menu Anggota SHALL dibagi per halaman dengan 
 - **WHEN** admin mencentang 3 nama di halaman 1 lalu pindah ke halaman 2 dan mencentang 2 nama
 - **THEN** bilah aksi menampilkan "5 dipilih"
 
-### Requirement: Filter kategori di menu Anggota
-Menu Anggota (semua orang) SHALL menyediakan filter kategori dengan pilihan "Semua kategori" (default), setiap kategori (kategori nonaktif ditandai), dan "Tidak di kategori mana pun". Filter SHALL dapat digabung dengan pencarian nama, dan "Pilih semua", aksi massal, serta pagination SHALL berlaku pada hasil yang sudah difilter. Pilihan filter SHALL tersimpan di alamat halaman.
+### Requirement: Data jamaah milik kelompok
+Setiap jamaah SHALL tercatat di tepat satu kelompok asal dengan atribut nama (wajib), jenis kelamin (L/P, wajib), tanggal lahir (opsional, tidak boleh di masa depan), dan status nikah (belum menikah, menikah, atau janda/duda; default belum menikah). Hanya admin Kelompok SHALL dapat menambah dan mengubah jamaah kelompoknya. Admin Desa SHALL dapat melihat jamaah semua kelompok di Desanya, dan Admin Daerah SHALL dapat melihat semua jamaah, tanpa bisa mengubahnya. Tanggal lahir dan status nikah SHALL NOT terbaca oleh pengunjung publik.
 
-#### Scenario: Filter satu kategori
-- **WHEN** admin memilih filter "Kajian Ahad"
-- **THEN** daftar hanya menampilkan orang yang menjadi anggota "Kajian Ahad", termasuk yang juga tergabung di kategori lain
+#### Scenario: Menambah jamaah
+- **WHEN** admin Kelompok Baitul Ilmi menambah jamaah "Budi", L, lahir 12 Mei 2012, belum menikah
+- **THEN** Budi tercatat sebagai jamaah Kelompok Baitul Ilmi dan otomatis menjadi peserta kegiatan yang kriterianya cocok
 
-#### Scenario: Orang tanpa kategori
-- **WHEN** admin memilih "Tidak di kategori mana pun"
-- **THEN** daftar hanya menampilkan orang yang tidak tergabung di kategori mana pun
+#### Scenario: Tanggal lahir di masa depan
+- **WHEN** admin mengisi tanggal lahir setelah hari ini
+- **THEN** sistem menolak dan menampilkan pesan validasi
 
-#### Scenario: Filter digabung pencarian dan pilih semua
-- **WHEN** admin memilih filter "Kelas A", mengetik "Fa", lalu menekan "Pilih semua"
-- **THEN** hanya anggota "Kelas A" yang namanya mengandung "Fa" yang terpilih
+#### Scenario: Admin Desa hanya melihat
+- **WHEN** Admin Desa CNT membuka menu jamaah
+- **THEN** jamaah semua kelompok di Desa CNT tampil beserta nama kelompoknya tanpa tombol tambah, ubah, atau hapus
+
+#### Scenario: Data pribadi tidak publik
+- **WHEN** klien anonim membaca data jamaah
+- **THEN** tanggal lahir dan status nikah tidak termasuk dalam respons
+
+### Requirement: Pindah kelompok
+Admin kelompok asal SHALL dapat melepas seorang jamaah aktif ke kelompok tujuan mana pun di Daerah. Permintaan SHALL tampil di "Permintaan masuk" kelompok tujuan, dan admin kelompok tujuan SHALL dapat menerima atau menolaknya; admin kelompok asal SHALL dapat membatalkan selama belum diputuskan. Selama permintaan menunggu, jamaah SHALL tetap menjadi jamaah kelompok asal dan SHALL NOT dapat dilepas lagi. Bila diterima, jamaah SHALL menjadi jamaah kelompok tujuan sejak saat diterima, dan riwayat perpindahan (asal, tujuan, waktu, admin yang melepas dan menerima) SHALL tercatat. Admin Desa dan Admin Daerah SHALL NOT dapat memindahkan jamaah. Admin kelompok asal SHALL dapat menuliskan alasan pindah (opsional, maksimal 500 karakter), dan admin kelompok tujuan SHALL dapat menuliskan alasan penolakan (opsional, maksimal 500 karakter); kedua alasan SHALL terlihat oleh kedua kelompok di riwayat perpindahan. Permintaan masuk SHALL menampilkan data jamaah yang dibutuhkan untuk memutuskan (nama, jenis kelamin, umur/tanggal lahir, status nikah, kelompok asal, dan admin yang melepas), meskipun jamaah itu belum menjadi jamaah kelompok tujuan.
+
+#### Scenario: Pindah antar kelompok
+- **WHEN** admin Baitul Ilmi melepas Budi ke Kelompok Citra dan admin Citra menerimanya
+- **THEN** Budi menjadi jamaah Kelompok Citra, tidak lagi menjadi peserta kegiatan Baitul Ilmi, menjadi peserta kegiatan Citra yang kriterianya cocok, dan riwayat perpindahan tercatat
+
+#### Scenario: Menunggu diterima
+- **WHEN** admin Baitul Ilmi sudah melepas Budi tetapi admin Citra belum memutuskan
+- **THEN** Budi tetap tampil dan tetap menjadi peserta di kegiatan Baitul Ilmi, dengan penanda "menunggu diterima Kelompok Citra"
+
+#### Scenario: Ditolak atau dibatalkan
+- **WHEN** admin Citra menolak, atau admin Baitul Ilmi membatalkan sebelum diputuskan
+- **THEN** Budi tetap menjadi jamaah Baitul Ilmi tanpa perubahan dan permintaan tercatat ditolak atau dibatalkan
+
+#### Scenario: Detail dan alasan pada permintaan masuk
+- **WHEN** admin Baitul Ilmi melepas Budi ke Citra dengan alasan "Menikah, ikut suami"
+- **THEN** admin Citra melihat nama, jenis kelamin, umur, status nikah, dan kelompok asal Budi beserta alasannya
+
+#### Scenario: Alasan penolakan
+- **WHEN** admin Citra menolak permintaan Budi dengan alasan "Belum ada konfirmasi"
+- **THEN** admin Baitul Ilmi melihat alasan itu di riwayat perpindahan; alasan yang dikosongkan tidak disimpan
+
+#### Scenario: Riwayat sesi tetap
+- **WHEN** Budi pindah ke Citra setelah mengikuti sesi-sesi Baitul Ilmi yang sudah selesai
+- **THEN** laporan sesi-sesi lama itu tetap menampilkan Budi dengan asal Kelompok Baitul Ilmi
+
+### Requirement: Jamaah nonaktif
+Admin Kelompok SHALL dapat menonaktifkan jamaahnya dengan alasan (meninggal, pindah ke luar daerah, lainnya) dan tanggal mulai nonaktif, serta mengaktifkannya kembali. Jamaah nonaktif SHALL NOT menjadi peserta sesi bertanggal pada atau setelah tanggal nonaktif, tetapi riwayat kehadirannya SHALL tetap ada di laporan. Jamaah yang sedang dalam permintaan pindah SHALL NOT dapat dinonaktifkan sebelum permintaannya diputuskan atau dibatalkan.
+
+#### Scenario: Jamaah meninggal
+- **WHEN** admin menonaktifkan Pak Ahmad dengan alasan meninggal sejak 12 Oktober 2026
+- **THEN** Pak Ahmad tidak lagi muncul di daftar pengisian sesi bertanggal 12 Oktober 2026 dan setelahnya, dan laporan sesi sebelumnya tetap menampilkannya
+
+#### Scenario: Diaktifkan kembali
+- **WHEN** admin mengaktifkan kembali jamaah yang keliru dinonaktifkan
+- **THEN** jamaah kembali menjadi peserta kegiatan yang kriterianya cocok
+
+### Requirement: Hapus jamaah
+Admin Kelompok SHALL dapat menghapus permanen jamaah kelompoknya hanya bila jamaah itu belum memiliki catatan kehadiran maupun riwayat perpindahan. Untuk jamaah dengan riwayat, sistem SHALL menolak dan menyarankan menonaktifkan.
+
+#### Scenario: Salah input
+- **WHEN** admin menghapus jamaah yang baru diinput dan belum pernah diabsen
+- **THEN** jamaah terhapus permanen
+
+#### Scenario: Jamaah dengan riwayat
+- **WHEN** admin mencoba menghapus jamaah yang sudah memiliki catatan kehadiran
+- **THEN** sistem menolak dan menyarankan "Nonaktifkan"
+
+### Requirement: Aksi massal jamaah
+Admin Kelompok SHALL dapat memilih banyak jamaah sekaligus di daftar jamaah (kotak centang per baris dan "Pilih semua" untuk seluruh hasil pencarian/filter di semua halaman) lalu menonaktifkan (dengan satu alasan dan tanggal) atau menghapus mereka. Hapus massal SHALL hanya menghapus jamaah tanpa riwayat dan menyebutkan jamaah yang dilewati. Aksi massal SHALL atomik per aksi.
+
+#### Scenario: Hapus hasil import yang salah
+- **WHEN** admin memilih 10 jamaah hasil import yang salah (belum pernah diabsen) lalu memilih "Hapus"
+- **THEN** kesepuluh jamaah terhapus
+
+#### Scenario: Hapus massal dengan sebagian punya riwayat
+- **WHEN** admin memilih 5 jamaah dan 2 di antaranya punya catatan kehadiran lalu memilih "Hapus"
+- **THEN** 3 jamaah terhapus dan sistem menyebutkan 2 jamaah dilewati karena punya riwayat
+
+### Requirement: Filter dan kelengkapan data jamaah
+Daftar jamaah admin SHALL dapat difilter berdasarkan desa dan kelompok (sesuai cakupan admin), status (aktif/nonaktif/menunggu pindah), dan "data belum lengkap" (tanggal lahir kosong), serta dicari berdasarkan nama. Filter SHALL tersimpan di alamat halaman. Jamaah tanpa tanggal lahir SHALL ditandai karena tidak akan masuk kegiatan yang memakai batas umur.
+
+#### Scenario: Data belum lengkap
+- **WHEN** admin Kelompok memilih filter "Data belum lengkap"
+- **THEN** hanya jamaah tanpa tanggal lahir yang tampil, dengan keterangan bahwa mereka belum masuk kegiatan berbatas umur
+
+#### Scenario: Admin Desa per kelompok
+- **WHEN** Admin Desa memilih filter Kelompok "Citra"
+- **THEN** hanya jamaah Kelompok Citra yang tampil

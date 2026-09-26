@@ -6,43 +6,24 @@ Menyediakan alur publik mobile-first yang sangat mudah bagi orang tua: pilih kat
 
 ## Requirements
 
-### Requirement: Beranda daftar kategori
-Halaman `/` SHALL menampilkan semua kategori aktif sebagai kartu yang dapat di-tap. Bila kategori memiliki sesi berjalan, kartu SHALL berisi nama kategori, label dan jam sesi berjalan, persentase hadir, dan jumlah hadir/total anggota. Bila tidak, kartu SHALL menampilkan kapan absen berikutnya dibuka atau "Belum ada jadwal sesi", tanpa persentase. Halaman ini SHALL dapat diakses tanpa login dan SHALL memperbarui keadaan kartu tepat saat sebuah sesi mulai atau selesai tanpa pengguna memuat ulang halaman.
-
-#### Scenario: Menampilkan kategori
-- **WHEN** pengunjung membuka `/` saat sesi "Kelas A" 19.30–21.00 sedang berjalan
-- **THEN** kartu "Kelas A" menampilkan nama, "19.30–21.00", persentase hadir, dan teks seperti "12/15 hadir"
-
-#### Scenario: Membuka kategori
-- **WHEN** pengunjung men-tap kartu "Kelas A"
-- **THEN** sistem membuka `/k/kelas-a`
-
-#### Scenario: Kategori tanpa sesi berjalan
-- **WHEN** sebuah kategori tidak memiliki sesi berjalan dan sesi berikutnya dijadwalkan Kamis, 8 Oktober 2026 pukul 19.30
-- **THEN** kartunya tampil dengan tulisan "Absen dibuka Kamis, 8 Oktober 2026 pukul 19.30" tanpa persentase
-
-#### Scenario: Kartu berubah saat sesi mulai
-- **WHEN** beranda sedang terbuka dan jam mencapai 19.30, jam mulai sesi "Kelas A"
-- **THEN** kartu "Kelas A" berubah menampilkan sesi berjalan dan persentasenya tanpa memuat ulang halaman
-
-#### Scenario: Belum ada kategori
-- **WHEN** belum ada kategori sama sekali
-- **THEN** beranda menampilkan pesan kosong yang ramah
-
 ### Requirement: Halaman daftar anggota kategori
-Halaman `/k/:slug` SHALL menampilkan label, jam, dan catatan sesi berjalan, persentase hadir keseluruhan serta per jenis kelamin (L dan P, masing-masing dengan jumlah hadir/total), kolom pencarian nama, dan daftar anggota kategori diurutkan berdasarkan nama. Setiap baris anggota SHALL menampilkan nama dan status sesi berjalannya berupa label berwarna, atau penanda "Belum" bila belum diisi. Bila tidak ada sesi berjalan, halaman SHALL menampilkan kapan absen berikutnya dibuka atau "Belum ada jadwal sesi" tanpa daftar pengisian, dan SHALL beralih otomatis ke daftar pengisian tepat saat sesi berikutnya mulai.
+Halaman `/k/:slug` (halaman kegiatan) SHALL menampilkan nama kegiatan dan unit pemiliknya, label, jam, dan catatan sesi berjalan, persentase hadir keseluruhan serta per jenis kelamin (L dan P, masing-masing dengan jumlah hadir/total), kolom pencarian nama, dan daftar peserta sesi berjalan diurutkan berdasarkan nama. Setiap baris peserta SHALL menampilkan nama dan status sesi berjalannya berupa label berwarna, atau penanda "Belum" bila belum diisi. Untuk kegiatan milik Desa atau Daerah, halaman SHALL menyediakan filter kelompok dengan nilai bawaan kelompok yang diingat di perangkat (bila termasuk wilayah kegiatan) dan pilihan "Semua kelompok"; persentase mengikuti filter yang dipilih, dan setiap baris menampilkan nama kelompok asal saat "Semua kelompok" dipilih. Bila tidak ada sesi berjalan, halaman SHALL menampilkan kapan absen berikutnya dibuka atau "Belum ada jadwal sesi" tanpa daftar pengisian, dan SHALL beralih otomatis ke daftar pengisian tepat saat sesi berikutnya mulai.
 
 #### Scenario: Menampilkan daftar
-- **WHEN** pengunjung membuka `/k/kelas-a` saat sesi sedang berjalan
-- **THEN** sistem menampilkan label dan jam sesi, persentase keseluruhan, L, dan P, serta daftar anggota beserta statusnya
+- **WHEN** pengunjung membuka `/k/remaja-baitul-ilmi` saat sesi sedang berjalan
+- **THEN** sistem menampilkan label dan jam sesi, persentase keseluruhan, L, dan P, serta daftar peserta beserta statusnya
 
 #### Scenario: Menunggu jam mulai
-- **WHEN** pengunjung membuka `/k/kelas-a` pukul 19.00 dan sesi berikutnya mulai pukul 19.30 hari itu
+- **WHEN** pengunjung membuka halaman kegiatan pukul 19.00 dan sesi berikutnya mulai pukul 19.30 hari itu
 - **THEN** halaman menampilkan "Absen dibuka <hari, tanggal> pukul 19.30" tanpa daftar pengisian, lalu menampilkan daftar pengisian pada pukul 19.30 tanpa dimuat ulang
 
 #### Scenario: Slug tidak ditemukan
-- **WHEN** pengunjung membuka slug kategori yang tidak ada
-- **THEN** sistem menampilkan pesan "Kategori tidak ditemukan" dan tautan kembali ke beranda
+- **WHEN** pengunjung membuka slug kegiatan yang tidak ada
+- **THEN** sistem menampilkan pesan "Kegiatan tidak ditemukan" dan tautan kembali ke beranda
+
+#### Scenario: Kegiatan Desa difilter ke kelompok sendiri
+- **WHEN** pengunjung yang kelompoknya Baitul Ilmi membuka kegiatan "Desaan CNT" yang mencakup Baitul Ilmi dan Citra
+- **THEN** daftar bawaan hanya berisi peserta dari Baitul Ilmi, dan memilih "Semua kelompok" menampilkan peserta kedua kelompok beserta nama kelompoknya
 
 ### Requirement: Pencarian nama
 Kolom pencarian SHALL menyaring daftar anggota secara langsung saat pengguna mengetik, tanpa membedakan huruf besar/kecil dan mencocokkan bagian mana pun dari nama.
@@ -125,3 +106,37 @@ Antarmuka publik SHALL dirancang mobile-first: tidak ada scroll horizontal pada 
 #### Scenario: Layar kecil
 - **WHEN** halaman kategori dibuka di layar selebar 360px
 - **THEN** seluruh konten muat tanpa scroll horizontal dan tombol status mudah di-tap
+
+### Requirement: Pilih desa dan kelompok
+Halaman `/` SHALL meminta pengunjung memilih Desa lalu Kelompok (tanpa login), lalu membuka halaman kelompok tersebut. Kelompok yang dipilih SHALL diingat di perangkat sehingga kunjungan berikutnya ke `/` langsung membuka halaman kelompok itu, dengan tombol "Ganti kelompok" untuk memilih ulang. Bila penyimpanan perangkat tidak tersedia, pengunjung cukup memilih ulang tanpa error.
+
+#### Scenario: Kunjungan pertama
+- **WHEN** pengunjung membuka `/` untuk pertama kali
+- **THEN** sistem menampilkan daftar Desa, lalu daftar Kelompok di Desa yang dipilih, lalu membuka halaman kelompok yang dipilih
+
+#### Scenario: Kunjungan berikutnya
+- **WHEN** pengunjung yang sebelumnya memilih Kelompok Baitul Ilmi membuka `/` lagi
+- **THEN** sistem langsung membuka halaman Kelompok Baitul Ilmi
+
+#### Scenario: Ganti kelompok
+- **WHEN** pengunjung menekan "Ganti kelompok"
+- **THEN** sistem kembali ke pilihan Desa dan Kelompok
+
+#### Scenario: Belum ada struktur
+- **WHEN** belum ada Desa atau Kelompok sama sekali
+- **THEN** beranda menampilkan pesan kosong yang ramah
+
+### Requirement: Halaman kelompok
+Halaman kelompok SHALL menampilkan kegiatan aktif yang mengikutkan kelompok itu, dengan filter **Kelompok** (kegiatan milik kelompok itu, default), **Desa** (kegiatan milik Desanya yang wilayahnya mencakup kelompok itu), dan **Daerah** (kegiatan milik Daerah yang wilayahnya mencakup Desanya). Kegiatan dengan sesi berjalan SHALL tampil paling atas beserta jam dan persentase hadir; kegiatan lain diurutkan dari jadwal terdekat dengan keterangan "Absen dibuka <hari, tanggal> pukul <jam>" atau "Belum ada jadwal sesi". Persentase pada kartu kegiatan Desa/Daerah SHALL dihitung untuk peserta dari kelompok itu. Kartu SHALL memperbarui keadaannya tepat saat sesi mulai atau selesai tanpa memuat ulang halaman.
+
+#### Scenario: Filter default kelompok
+- **WHEN** pengunjung membuka halaman Kelompok Baitul Ilmi saat sesi "Remaja" sedang berjalan
+- **THEN** kartu "Remaja" tampil paling atas dengan jam dan persentase hadir, diikuti kegiatan kelompok lainnya
+
+#### Scenario: Filter Desa
+- **WHEN** pengunjung memilih filter Desa di halaman Kelompok Baitul Ilmi
+- **THEN** hanya kegiatan milik Desa CNT yang wilayahnya mencakup Baitul Ilmi yang tampil, dengan persentase hadir peserta dari Baitul Ilmi
+
+#### Scenario: Kegiatan tidak mencakup kelompok
+- **WHEN** kegiatan Desa CNT hanya mencakup Kelompok Citra
+- **THEN** kegiatan itu tidak tampil di halaman Kelompok Baitul Ilmi
