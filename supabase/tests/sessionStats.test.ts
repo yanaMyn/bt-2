@@ -18,12 +18,10 @@ async function set(memberName: string, label: string) {
 
 beforeEach(async () => {
   db = await createDb()
-  cat = (await asAdmin(db, (tx) => tx.query<{ id: string }>(`select id from create_category('Kelas A')`))).rows[0].id
+  cat = (await asAdmin(db, (tx) => tx.query<{ id: string }>(`select id from create_activity('Kelas A')`))).rows[0].id
   await scheduleSession(db, cat)
   await asAdmin(db, (tx) =>
-    tx.query(`select import_members($1, $2)`, [
-      cat,
-      JSON.stringify([
+    tx.query(`select import_members($1)`, [JSON.stringify([
         { name: 'Ahmad', gender: 'L' },
         { name: 'Budi', gender: 'L' },
         { name: 'Citra', gender: 'P' },
@@ -39,13 +37,15 @@ describe('14.1 session_stats', () => {
     await set('Budi', 'Hadir')
     await set('Citra', 'Izin')
     await endAndOpen(db, cat)
-    // Setelah reset: Dina dikeluarkan, Ahmad hadir di sesi aktif.
+    // Setelah reset: Dina dinonaktifkan mulai hari ini, Ahmad hadir di sesi aktif.
     await asAdmin(db, (tx) =>
-      tx.query(`delete from category_members where member_id = (select id from members where name = 'Dina')`),
+      tx.query(
+        `select set_members_active(array[(select id from members where name = 'Dina')], false, today_jakarta(), 'lainnya')`,
+      ),
     )
     await set('Ahmad', 'Hadir')
 
-    const r = await asAnon(db, (tx) =>
+    const r = await asAdmin(db, (tx) =>
       tx.query<{ label: string; total: number; present: number; closed: boolean }>(
         `select label, total, present, closed_at is not null closed from session_stats order by started_at, closed_at nulls last`,
       ),

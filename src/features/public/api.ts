@@ -1,10 +1,11 @@
 import { supabase } from '../../lib/supabase'
 import {
   CATEGORY_COLUMNS,
+  type ActivityCard,
   type AttendanceRow,
   type Category,
-  type CategorySummary,
   type Member,
+  type OrgUnit,
   type Session,
   type Status,
 } from '../../lib/types'
@@ -14,8 +15,20 @@ function unwrap<T>(res: { data: T | null; error: unknown }): T {
   return res.data as T
 }
 
-export async function fetchSummaries(): Promise<CategorySummary[]> {
-  return unwrap(await supabase.from('category_summary').select('*').eq('is_active', true).order('name'))
+/** Seluruh Desa & Kelompok (tanpa data pribadi) untuk pemilihan di beranda. */
+export async function fetchStructure(): Promise<OrgUnit[]> {
+  return unwrap(await supabase.rpc('public_structure'))
+}
+
+/** Kegiatan aktif yang mengikutkan kelompok ini; hadir/total dihitung untuk peserta kelompok ini saja. */
+export async function fetchKelompokActivities(kelompokId: string): Promise<ActivityCard[]> {
+  const rows = unwrap<ActivityCard[]>(await supabase.rpc('public_kelompok_activities', { p_kelompok: kelompokId }))
+  return [...rows].sort((a, b) => a.name.localeCompare(b.name, 'id', { sensitivity: 'base' }))
+}
+
+export interface Participant extends Member {
+  kelompok_id: string
+  kelompok_name: string
 }
 
 export interface CategoryPageData {
@@ -25,7 +38,8 @@ export interface CategoryPageData {
   /** Sesi dijadwalkan terdekat (untuk "Absen dibuka …"). */
   next: Session | null
   statuses: Status[]
-  members: Member[]
+  /** Peserta sesi berjalan (kosong bila tidak ada sesi). */
+  members: Participant[]
   /** member_id -> status_id pada sesi aktif */
   attendance: Map<string, string>
 }
@@ -43,7 +57,7 @@ export async function fetchCategoryPage(slug: string): Promise<CategoryPageData 
   )
   if (!category) return null
 
-  const [session, next, statuses, memberRows] = await Promise.all([
+  const [session, next, statuses, members] = await Promise.all([
     currentSession(category.id),
     supabase
       .from('sessions')
@@ -62,11 +76,17 @@ export async function fetchCategoryPage(slug: string): Promise<CategoryPageData 
       .order('sort_order')
       .order('created_at')
       .then((r) => unwrap<Status[]>(r)),
-    supabase
-      .from('category_members')
-      .select('member:members(id, name, gender)')
-      .eq('category_id', category.id)
-      .then((r) => unwrap<{ member: Member }[]>(r as never)),
+    supabase.rpc('public_activity_participants', { p_category_id: category.id }).then((r) =>
+      unwrap<
+        { member_id: string; name: string; gender: Member['gender']; kelompok_id: string; kelompok_name: string }[]
+      >(r).map((p): Participant => ({
+        id: p.member_id,
+        name: p.name,
+        gender: p.gender,
+        kelompok_id: p.kelompok_id,
+        kelompok_name: p.kelompok_name,
+      })),
+    ),
   ])
 
   const attendanceRows = session
@@ -75,9 +95,7 @@ export async function fetchCategoryPage(slug: string): Promise<CategoryPageData 
       )
     : []
 
-  const members = memberRows
-    .map((r) => r.member)
-    .sort((a, b) => a.name.localeCompare(b.name, 'id', { sensitivity: 'base' }))
+  members.sort((a, b) => a.name.localeCompare(b.name, 'id', { sensitivity: 'base' }))
 
   return {
     category,

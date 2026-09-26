@@ -1,11 +1,15 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { Button, ErrorText, Field, inputClass } from '../../components/ui'
+import { clearAdminCache } from '../../lib/authCache'
 import { supabase } from '../../lib/supabase'
+import { loginIdToEmail } from '../../../supabase/functions/admin-accounts/logic'
 import { useAuthSession } from './auth'
 
 const LOGIN_ERRORS: Record<string, string> = {
-  invalid_credentials: 'Email atau password salah',
+  invalid_credentials: 'Nama pengguna atau password salah',
+  user_banned: 'Akun dinonaktifkan. Hubungi admin di atas Anda.',
   email_not_confirmed: 'Email admin belum dikonfirmasi. Konfirmasi user ini di Supabase (Authentication → Users).',
   email_provider_disabled:
     'Login email dimatikan di Supabase. Nyalakan provider Email di Authentication → Sign In / Providers.',
@@ -22,7 +26,8 @@ export function LoginPage() {
   const session = useAuthSession()
   const navigate = useNavigate()
   const location = useLocation()
-  const [email, setEmail] = useState('')
+  const qc = useQueryClient()
+  const [loginId, setLoginId] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -34,12 +39,13 @@ export function LoginPage() {
     e.preventDefault()
     setBusy(true)
     setError(null)
-    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password })
+    const { error } = await supabase.auth.signInWithPassword({ email: loginIdToEmail(loginId), password })
     setBusy(false)
     if (error) {
       setError(loginErrorMessage(error))
       return
     }
+    clearAdminCache(qc)
     navigate(from, { replace: true })
   }
 
@@ -48,14 +54,17 @@ export function LoginPage() {
       <h1 className="text-2xl font-bold text-brand-700">Masuk Admin</h1>
       <p className="mb-6 text-muted">Khusus pengelola absensi.</p>
       <form onSubmit={onSubmit} className="flex flex-col gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
-        <Field label="Email">
+        <Field label="Nama pengguna">
           <input
             className={inputClass}
-            type="email"
+            type="text"
             autoComplete="username"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
             required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            value={loginId}
+            onChange={(e) => setLoginId(e.target.value)}
           />
         </Field>
         <Field label="Password">

@@ -20,7 +20,7 @@ describe('migrasi 0008 pada sesi berlabel bebas', () => {
         ('00000000-0000-0000-0000-000000000001', 'September 2026', '2026-09-05T02:00:00Z', '2026-09-12T02:00:00Z'),
         ('00000000-0000-0000-0000-000000000001', 'Pekan 2 (tafsir)', '2026-09-12T17:30:00Z', null);`)
 
-    for (const f of files.filter((f) => f >= '20260926000008')) await db.exec(readFileSync(join(DIR, f), 'utf8'))
+    for (const f of files.filter((f) => f.startsWith('20260926000008'))) await db.exec(readFileSync(join(DIR, f), 'utf8'))
 
     const r = await db.query(`select to_char(session_date, 'YYYY-MM-DD') d, label, note from sessions order by started_at`)
     expect(r.rows).toEqual([

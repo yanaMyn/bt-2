@@ -5,7 +5,18 @@ import { useToast } from '../../components/Toast'
 import { Button, Card, ConfirmDialog, ErrorText, Field, inputClass } from '../../components/ui'
 import { errorMessage } from '../../lib/errors'
 import type { Category } from '../../lib/types'
-import { deleteCategory, getCategoryPin, renameCategory, setCategoryActive, setCategoryPin } from './api'
+import { ActivityForm } from './ActivityForm'
+import {
+  deleteCategory,
+  getCategoryPin,
+  listActivityUnits,
+  setCategoryActive,
+  setCategoryPin,
+  updateActivity,
+  type ActivityInput,
+} from './api'
+import { useProfile } from './profile'
+import { useUnits } from './units'
 
 export function CategorySettingsTab({ category }: { category: Category }) {
   const qc = useQueryClient()
@@ -13,16 +24,21 @@ export function CategorySettingsTab({ category }: { category: Category }) {
   const navigate = useNavigate()
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ['admin'] })
-    void qc.invalidateQueries({ queryKey: ['summaries'] })
+    void qc.invalidateQueries({ queryKey: ['kelompok-activities'] })
     void qc.invalidateQueries({ queryKey: ['category'] })
   }
 
-  const [name, setName] = useState(category.name)
-  const rename = useMutation({
-    mutationFn: () => renameCategory(category.id, name),
+  const profile = useProfile()
+  const { data: units } = useUnits()
+  const scopeUnits = useQuery({
+    queryKey: ['admin', 'activity-units', category.id],
+    queryFn: () => listActivityUnits(category.id),
+  })
+  const save = useMutation({
+    mutationFn: (input: ActivityInput) => updateActivity(category.id, input),
     onSuccess: () => {
       refresh()
-      toast({ message: 'Nama kategori disimpan' })
+      toast({ message: 'Kegiatan disimpan' })
     },
   })
 
@@ -76,8 +92,8 @@ export function CategorySettingsTab({ category }: { category: Category }) {
     mutationFn: () => deleteCategory(category.id),
     onSuccess: () => {
       refresh()
-      toast({ message: `Kategori ${category.name} dihapus` })
-      navigate('/admin/kategori', { replace: true })
+      toast({ message: `Kegiatan ${category.name} dihapus` })
+      navigate('/admin/kegiatan', { replace: true })
     },
   })
 
@@ -86,14 +102,14 @@ export function CategorySettingsTab({ category }: { category: Category }) {
       <Card>
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="font-bold">Kategori aktif</p>
+            <p className="font-bold">Kegiatan aktif</p>
             <p className="text-sm text-muted">
-              Bila nonaktif, kategori tersembunyi dari halaman orang tua. Anggota, status, dan riwayat tetap tersimpan.
+              Bila nonaktif, kegiatan tersembunyi dari halaman orang tua. Status, sesi, dan riwayat tetap tersimpan.
             </p>
           </div>
           <Switch
             checked={category.is_active}
-            label="Kategori aktif"
+            label="Kegiatan aktif"
             disabled={toggleActive.isPending}
             onChange={() => toggleActive.mutate(!category.is_active)}
           />
@@ -102,28 +118,41 @@ export function CategorySettingsTab({ category }: { category: Category }) {
       </Card>
 
       <Card>
-        <form
-          onSubmit={(e) => {
-            e.preventDefault()
-            rename.mutate()
-          }}
-          className="flex flex-col gap-3"
-        >
-          <Field label="Nama kategori" hint="Alamat halaman publik ikut berubah mengikuti nama.">
-            <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} />
-          </Field>
-          <ErrorText>{rename.error && errorMessage(rename.error)}</ErrorText>
-          <Button type="submit" disabled={!name.trim() || name.trim() === category.name || rename.isPending}>
-            Simpan nama
-          </Button>
-        </form>
+        <p className="mb-3 font-bold">Nama, kriteria & wilayah peserta</p>
+        {units && scopeUnits.data ? (
+          <ActivityForm
+            key={category.id + category.slug}
+            initial={{
+              name: category.name,
+              gender: category.criteria_gender,
+              minAge: category.criteria_min_age,
+              maxAge: category.criteria_max_age,
+              marital: category.criteria_marital,
+              scopeAll: category.scope_all,
+              units: scopeUnits.data,
+            }}
+            ownerLevel={profile.unit_level}
+            ownerUnitId={category.owner_unit_id}
+            units={units}
+            submitLabel="Simpan kegiatan"
+            busy={save.isPending}
+            error={save.error && errorMessage(save.error)}
+            onSubmit={(input) => save.mutate(input)}
+          />
+        ) : (
+          <p className="text-muted">Memuat…</p>
+        )}
+        <p className="mt-2 text-sm text-muted">
+          Perubahan kriteria berlaku untuk sesi berjalan dan berikutnya; sesi yang sudah selesai tidak berubah. Alamat
+          halaman publik ikut berubah mengikuti nama.
+        </p>
       </Card>
 
       <Card>
         <form onSubmit={onSavePin} className="flex flex-col gap-3">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="font-bold">PIN kategori</p>
+              <p className="font-bold">PIN kegiatan</p>
               <p className="text-sm text-muted">
                 Bila aktif, orang tua perlu memasukkan PIN sekali di HP-nya sebelum mengisi kehadiran.
               </p>
@@ -191,22 +220,21 @@ export function CategorySettingsTab({ category }: { category: Category }) {
       </Card>
 
       <Card className="ring-red-200">
-        <p className="font-bold text-red-700">Hapus kategori</p>
+        <p className="font-bold text-red-700">Hapus kegiatan</p>
         <p className="mb-3 text-sm text-muted">
-          Menghapus kategori beserta status, sesi, dan seluruh catatan kehadirannya. Data orang yang juga tergabung di
-          kategori lain tetap ada.
+          Menghapus kegiatan beserta status, sesi, dan seluruh catatan kehadirannya. Data jamaah tetap ada.
         </p>
         <Button variant="danger" onClick={() => setConfirmDelete(true)}>
-          Hapus kategori…
+          Hapus kegiatan…
         </Button>
       </Card>
 
       {confirmDelete && (
         <ConfirmDialog
-          title="Hapus kategori?"
+          title="Hapus kegiatan?"
           message={
             <>
-              Kategori <b>{category.name}</b> dan seluruh riwayat kehadirannya akan dihapus permanen.
+              Kegiatan <b>{category.name}</b> dan seluruh riwayat kehadirannya akan dihapus permanen.
             </>
           }
           typeToConfirm={category.name}

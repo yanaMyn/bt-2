@@ -48,7 +48,21 @@ const sessions = [
 ]
 const hadirCount: Record<string, number> = { s1: 9, s2: 8, s3: 7, s4: 6, okt: 10 }
 const data: ReportData = {
-  category: { id: 'c', name: 'Kelas A', slug: 'kelas-a', pin_enabled: false, is_active: true, created_at: '' },
+  category: {
+    id: 'c',
+    name: 'Kelas A',
+    slug: 'kelas-a',
+    pin_enabled: false,
+    is_active: true,
+    created_at: '',
+    owner_unit_id: 'u',
+    scope_all: true,
+    criteria_gender: null,
+    criteria_min_age: null,
+    criteria_max_age: null,
+    criteria_marital: null,
+  },
+  kelompokBySession: new Map(),
   statuses: [hadir, izin],
   sessions,
   members: new Map(members.map((m) => [m.id, m])),

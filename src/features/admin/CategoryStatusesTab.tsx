@@ -11,7 +11,7 @@ import { createStatus, deleteStatus, getResetStatusId, listStatuses, setResetSta
 
 function statusError(e: unknown) {
   return (e as { code?: string })?.code === '23505'
-    ? 'Label sudah dipakai status lain di kategori ini.'
+    ? 'Label sudah dipakai status lain di kegiatan ini.'
     : errorMessage(e)
 }
 
@@ -38,7 +38,7 @@ export function CategoryStatusesTab({ category }: { category: Category }) {
     void qc.invalidateQueries({ queryKey: ['admin', 'reset-status', category.id] })
     void qc.invalidateQueries({ queryKey: ['admin', 'categories'] })
     void qc.invalidateQueries({ queryKey: ['admin', 'report', category.id] })
-    void qc.invalidateQueries({ queryKey: ['summaries'] })
+    void qc.invalidateQueries({ queryKey: ['kelompok-activities'] })
     void qc.invalidateQueries({ queryKey: ['category'] })
   }
 

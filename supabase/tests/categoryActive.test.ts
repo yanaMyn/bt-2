@@ -9,9 +9,9 @@ let hadir: string
 
 beforeEach(async () => {
   db = await createDb()
-  cat = (await asAdmin(db, (tx) => tx.query<{ id: string }>(`select id from create_category('Desaan CNB')`))).rows[0].id
+  cat = (await asAdmin(db, (tx) => tx.query<{ id: string }>(`select id from create_activity('Desaan CNB')`))).rows[0].id
   await scheduleSession(db, cat)
-  await asAdmin(db, (tx) => tx.query(`select import_members($1, '[{"name":"Budi","gender":"L"}]')`, [cat]))
+  await asAdmin(db, (tx) => tx.query(`select import_members('[{"name":"Budi","gender":"L"}]')`))
   member = (await db.query<{ id: string }>(`select id from members`)).rows[0].id
   hadir = (await db.query<{ id: string }>(`select id from statuses where label = 'Hadir'`)).rows[0].id
 })
@@ -21,8 +21,8 @@ const setActive = (active: boolean) =>
 
 describe('13.1 kategori aktif/nonaktif', () => {
   it('kategori baru aktif dan terlihat anon', async () => {
-    const r = await asAnon(db, (tx) => tx.query(`select name, is_active from category_summary`))
-    expect(r.rows).toEqual([{ name: 'Desaan CNB', is_active: true }])
+    const r = await asAnon(db, (tx) => tx.query(`select name from public_kelompok_activities((select id from org_units where slug = 'baitul-ilmi'))`))
+    expect(r.rows).toEqual([{ name: 'Desaan CNB' }])
   })
 
   it('kategori nonaktif hilang untuk anon (tabel & ringkasan) tetapi terlihat admin', async () => {
@@ -31,8 +31,8 @@ describe('13.1 kategori aktif/nonaktif', () => {
     )
     await setActive(false)
     expect((await asAnon(db, (tx) => tx.query(`select 1 from categories`))).rows).toHaveLength(0)
-    expect((await asAnon(db, (tx) => tx.query(`select 1 from category_summary`))).rows).toHaveLength(0)
-    const admin = await asAdmin(db, (tx) => tx.query(`select name, is_active, present from category_summary`))
+    expect((await asAnon(db, (tx) => tx.query(`select 1 from public_kelompok_activities((select id from org_units where slug = 'baitul-ilmi'))`))).rows).toHaveLength(0)
+    const admin = await asAdmin(db, (tx) => tx.query(`select name, is_active, present from activity_summary`))
     expect(admin.rows).toEqual([{ name: 'Desaan CNB', is_active: false, present: 1 }])
   })
 
@@ -50,7 +50,7 @@ describe('13.1 kategori aktif/nonaktif', () => {
     await asAnon(db, (tx) => tx.query(`select set_attendance($1, $2, $3)`, [cat, member, hadir]))
     await setActive(false)
     await setActive(true)
-    const r = await asAnon(db, (tx) => tx.query(`select total, present from category_summary`))
+    const r = await asAnon(db, (tx) => tx.query(`select total, present from public_kelompok_activities((select id from org_units where slug = 'baitul-ilmi'))`))
     expect(r.rows).toEqual([{ total: 1, present: 1 }])
   })
 

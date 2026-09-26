@@ -1,6 +1,6 @@
 import type { PGlite, Transaction } from '@electric-sql/pglite'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { asAdmin, asAnon, createDb, endAndOpen, errorOf, scheduleSession } from './harness'
+import { asAdmin, asAnon, asUser, createDb, endAndOpen, errorOf, orgFor, scheduleFor, scheduleSession } from './harness'
 
 type Q = PGlite | Transaction
 
@@ -11,17 +11,33 @@ async function one<T>(q: Q, sql: string, params: unknown[] = []): Promise<T> {
 
 /** Buat kategori; default langsung dijadwalkan satu sesi yang berjalan hari ini. */
 async function createCategory(db: PGlite, name: string, withSession = true) {
-  const cat = await asAdmin(db, (tx) => one<{ id: string; slug: string }>(tx, `select * from create_category($1)`, [name]))
+  const cat = await asAdmin(db, (tx) => one<{ id: string; slug: string }>(tx, `select * from create_activity($1)`, [name]))
   if (withSession) await scheduleSession(db, cat.id)
   return cat
 }
 
+/** Kategori milik Kelompok Citra (anggota terpisah dari kategori milik Baitul Ilmi). */
+async function createCategoryInCitra(db: PGlite, name: string) {
+  const org = await orgFor(db)
+  const cat = await asUser(db, org.users.citra, (tx) =>
+    one<{ id: string; slug: string }>(tx, `select * from create_activity($1)`, [name]),
+  )
+  await scheduleFor(db, org.users.citra, cat.id)
+  return cat
+}
+
+/** Import jamaah ke kelompok pemilik kategori; mengembalikan jamaah kelompok itu (= peserta kategori). */
 async function addMembers(db: PGlite, categoryId: string, rows: { name: string; gender: string }[]) {
-  await asAdmin(db, (tx) => tx.query(`select import_members($1, $2)`, [categoryId, JSON.stringify(rows)]))
-  const res = await db.query<{ id: string; name: string }>(
-    `select m.id, m.name from members m join category_members cm on cm.member_id = m.id
-     where cm.category_id = $1 order by m.name`,
+  const owner = await one<{ user_id: string; unit_id: string }>(
+    db,
+    `select p.user_id, p.unit_id from categories c join admin_profiles p on p.unit_id = c.owner_unit_id
+     where c.id = $1 order by p.created_at limit 1`,
     [categoryId],
+  )
+  await asUser(db, owner.user_id, (tx) => tx.query(`select import_members($1)`, [JSON.stringify(rows)]))
+  const res = await db.query<{ id: string; name: string }>(
+    `select id, name from members where kelompok_id = $1 order by name`,
+    [owner.unit_id],
   )
   return res.rows
 }
@@ -67,7 +83,14 @@ describe('2.1 skema', () => {
   })
 
   it('menolak jenis kelamin selain L/P dan satu status per anggota per sesi', async () => {
-    expect(await errorOf(db.query(`insert into members (name, gender) values ('A', 'X')`))).toMatch(/check/)
+    await orgFor(db)
+    expect(
+      await errorOf(
+        db.query(
+          `insert into members (name, gender, kelompok_id) values ('A', 'X', (select id from org_units where level = 'kelompok' limit 1))`,
+        ),
+      ),
+    ).toMatch(/check/)
     const cat = await createCategory(db, 'Kelas A')
     const [m] = await addMembers(db, cat.id, [{ name: 'Budi', gender: 'L' }])
     const s = await one<{ id: string }>(db, `select id from sessions where category_id = $1`, [cat.id])
@@ -79,11 +102,10 @@ describe('2.1 skema', () => {
     expect(err).toMatch(/attendance_pkey/)
   })
 
-  it('menghapus kategori beserta turunannya tetapi mempertahankan orang di kategori lain', async () => {
+  it('menghapus kategori beserta turunannya tetapi mempertahankan jamaah', async () => {
     const a = await createCategory(db, 'Kelas A')
-    const b = await createCategory(db, 'Kajian')
+    await createCategory(db, 'Kajian')
     const [budi] = await addMembers(db, a.id, [{ name: 'Budi', gender: 'L' }])
-    await asAdmin(db, (tx) => tx.query(`insert into category_members values ($1, $2)`, [b.id, budi.id]))
     await setAttendance(db, a.id, budi.id, await statusId(db, a.id, 'Hadir'))
 
     await asAdmin(db, (tx) => tx.query(`delete from categories where id = $1`, [a.id]))
@@ -154,11 +176,11 @@ describe('2.2 RLS & hak akses', () => {
   it('anon tidak bisa memanggil fungsi admin', async () => {
     const cat = await createCategory(db, 'Kelas A')
     for (const sql of [
-      `select * from create_category('X')`,
+      `select * from create_activity('X')`,
       `select end_session('${cat.id}')`,
       `select schedule_sessions('${cat.id}', '[]')`,
       `select set_category_pin('${cat.id}', false)`,
-      `select import_members('${cat.id}', '[]')`,
+      `select import_members('[]')`,
     ]) {
       expect(await errorOf(asAnon(db, (tx) => tx.query(sql)))).toMatch(/NOT_ADMIN/)
     }
@@ -168,7 +190,7 @@ describe('2.2 RLS & hak akses', () => {
 describe('2.3 create_category & set_category_pin', () => {
   it('membuat kategori dengan 4 status bawaan dan tanpa sesi', async () => {
     const cat = await createCategory(db, 'Kelas 1A', false)
-    expect(cat.slug).toBe('kelas-1a')
+    expect(cat.slug).toBe('kelas-1a-baitul-ilmi')
     const statuses = await db.query<{ label: string; counts_as_present: boolean }>(
       `select label, counts_as_present from statuses where category_id = $1 order by sort_order`,
       [cat.id],
@@ -195,13 +217,13 @@ describe('2.3 create_category & set_category_pin', () => {
     await createCategory(db, 'Kelas A')
     expect(await errorOf(createCategory(db, ' kelas a '))).toMatch(/CATEGORY_NAME_TAKEN/)
     const other = await createCategory(db, 'Kelas-A')
-    expect(other.slug).toBe('kelas-a-2')
+    expect(other.slug).toBe('kelas-a-baitul-ilmi-2')
   })
 
-  it('rename memperbarui slug', async () => {
+  it('mengganti nama memperbarui slug', async () => {
     const cat = await createCategory(db, 'Kelas A')
-    const slug = await asAdmin(db, (tx) => one<{ s: string }>(tx, `select rename_category($1, 'Kelas 1A') s`, [cat.id]))
-    expect(slug.s).toBe('kelas-1a')
+    const slug = await asAdmin(db, (tx) => one<{ s: string }>(tx, `select update_activity($1, 'Kelas 1A') s`, [cat.id]))
+    expect(slug.s).toBe('kelas-1a-baitul-ilmi')
   })
 
   it('memvalidasi PIN tepat 4 digit dan wajib PIN saat menyalakan', async () => {
@@ -261,12 +283,12 @@ describe('2.4 verify_category_pin & set_attendance', () => {
     expect(await errorOf(setAttendance(db, cat.id, budi.id, hadir, '1234'))).toMatch(/PIN_INVALID/)
   })
 
-  it('menolak status kategori lain, status terarsip, dan non-anggota', async () => {
-    const other = await createCategory(db, 'Kajian')
+  it('menolak status kategori lain, status terarsip, dan bukan peserta', async () => {
+    const other = await createCategoryInCitra(db, 'Kajian')
     const [siti] = await addMembers(db, other.id, [{ name: 'Siti', gender: 'P' }])
     const otherHadir = await statusId(db, other.id, 'Hadir')
     expect(await errorOf(setAttendance(db, cat.id, budi.id, otherHadir))).toMatch(/INVALID_STATUS/)
-    expect(await errorOf(setAttendance(db, cat.id, siti.id, await statusId(db, cat.id, 'Hadir')))).toMatch(/NOT_MEMBER/)
+    expect(await errorOf(setAttendance(db, cat.id, siti.id, await statusId(db, cat.id, 'Hadir')))).toMatch(/NOT_PARTICIPANT/)
 
     const izin = await statusId(db, cat.id, 'Izin')
     await db.query(`update statuses set archived_at = now() where id = $1`, [izin])
@@ -318,7 +340,7 @@ describe('2.5 delete_status', () => {
 describe('2.6 akhiri sesi & sesi baru', () => {
   it('snapshot anggota, tutup sesi, buka sesi baru; kategori lain tidak berubah', async () => {
     const a = await createCategory(db, 'Kelas A')
-    const b = await createCategory(db, 'Kelas B')
+    const b = await createCategoryInCitra(db, 'Kelas B')
     const membersA = await addMembers(db, a.id, [
       { name: 'Budi', gender: 'L' },
       { name: 'Citra', gender: 'P' },
@@ -354,7 +376,10 @@ describe('2.6 akhiri sesi & sesi baru', () => {
     expect(oldRows.rows).toEqual([{ label: 'Alpa' }, { label: 'Hadir' }])
     expect((await db.query(`select 1 from attendance where session_id = $1`, [newId.id])).rows).toHaveLength(0)
 
-    const summaryB = await one<{ present: number }>(db, `select present from category_summary where category_id = $1`, [b.id])
+    const citra = await one<{ id: string }>(db, `select id from org_units where slug = 'citra'`)
+    const summaryB = await asAnon(db, (tx) =>
+      one<{ present: number }>(tx, `select present from public_kelompok_activities($1) where category_id = $2`, [citra.id, b.id]),
+    )
     expect(summaryB.present).toBe(1)
   })
 
@@ -387,7 +412,7 @@ describe('2.6 akhiri sesi & sesi baru', () => {
 describe('2.7 import_members', () => {
   it('selalu membuat orang baru dan menormalkan spasi', async () => {
     const a = await createCategory(db, 'Kelas A')
-    const b = await createCategory(db, 'Kajian')
+    const b = await createCategoryInCitra(db, 'Kajian')
     await addMembers(db, a.id, [{ name: 'Ahmad Fauzi', gender: 'L' }])
     const rows = await addMembers(db, b.id, [{ name: '  Ahmad   Fauzi ', gender: 'L' }])
     expect(rows.map((r) => r.name)).toEqual(['Ahmad Fauzi'])
@@ -395,12 +420,10 @@ describe('2.7 import_members', () => {
   })
 
   it('satu baris tidak valid membatalkan seluruh import', async () => {
-    const a = await createCategory(db, 'Kelas A')
+    await createCategory(db, 'Kelas A')
     const err = await errorOf(
       asAdmin(db, (tx) =>
-        tx.query(`select import_members($1, $2)`, [
-          a.id,
-          JSON.stringify([
+        tx.query(`select import_members($1)`, [JSON.stringify([
             { name: 'Budi', gender: 'L' },
             { name: 'Citra', gender: 'X' },
           ]),
@@ -412,14 +435,14 @@ describe('2.7 import_members', () => {
   })
 })
 
-describe('2.8 category_summary', () => {
+describe('2.8 ringkasan kegiatan', () => {
   it('menghitung hadir/total keseluruhan dan per gender (77/82 L = 94%)', async () => {
     const cat = await createCategory(db, 'Kelas A')
     const rows = [
       ...Array.from({ length: 82 }, (_, i) => ({ name: `L${i}`, gender: 'L' })),
       ...Array.from({ length: 90 }, (_, i) => ({ name: `P${i}`, gender: 'P' })),
     ]
-    await asAdmin(db, (tx) => tx.query(`select import_members($1, $2)`, [cat.id, JSON.stringify(rows)]))
+    await asAdmin(db, (tx) => tx.query(`select import_members($1)`, [JSON.stringify(rows)]))
     const hadir = await statusId(db, cat.id, 'Hadir')
     const izin = await statusId(db, cat.id, 'Izin')
     const s = await one<{ id: string }>(db, `select id from sessions where category_id = $1`, [cat.id])
@@ -436,15 +459,28 @@ describe('2.8 category_summary', () => {
        select $1::uuid, id, $2::uuid from (select id from members where gender = 'P' order by name offset 83 limit 2) z`,
       [s.id, izin],
     )
-    const sum = await asAnon(db, (tx) =>
-      one<Record<string, number>>(tx, `select total, present, total_l, present_l, total_p, present_p from category_summary`),
+    const sum = await asAdmin(db, (tx) => one<Record<string, number>>(tx, `select total, present from activity_summary`))
+    expect(sum).toEqual({ total: 172, present: 160 })
+    // Per jenis kelamin (dihitung klien dari daftar peserta publik).
+    const byGender = await asAnon(db, (tx) =>
+      tx.query<{ gender: string; total: number; present: number }>(
+        `select p.gender, count(*)::int total, count(st.id) filter (where st.counts_as_present)::int present
+         from public_activity_participants($1) p
+         left join attendance a on a.member_id = p.member_id and a.session_id = $2
+         left join statuses st on st.id = a.status_id
+         group by p.gender order by p.gender`,
+        [cat.id, s.id],
+      ),
     )
-    expect(sum).toEqual({ total: 172, present: 160, total_l: 82, present_l: 77, total_p: 90, present_p: 83 })
+    expect(byGender.rows).toEqual([
+      { gender: 'L', total: 82, present: 77 },
+      { gender: 'P', total: 90, present: 83 },
+    ])
   })
 
   it('kategori tanpa anggota menghasilkan 0/0', async () => {
     await createCategory(db, 'Kosong')
-    const sum = await one<{ total: number; present: number }>(db, `select total, present from category_summary`)
+    const sum = await asAdmin(db, (tx) => one<{ total: number; present: number }>(tx, `select total, present from activity_summary`))
     expect(sum).toEqual({ total: 0, present: 0 })
   })
 })

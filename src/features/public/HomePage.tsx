@@ -1,32 +1,64 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router'
+import { useQuery } from '@tanstack/react-query'
+import { Link, Navigate, useSearchParams } from 'react-router'
 import { PublicHeader } from '../../components/PublicHeader'
-import { ProgressBar } from '../../components/StatCard'
-import { useNow } from '../../hooks/useNow'
-import { useRealtime } from '../../hooks/useRealtime'
-import { stat } from '../../lib/stats'
-import { summarySessionText } from '../../lib/summaryText'
-import { fetchSummaries } from './api'
+import { childrenOf } from '../../lib/criteria'
+import { getKelompok } from '../../lib/kelompokStore'
+import { fetchStructure } from './api'
 
+const itemClass =
+  'flex min-h-16 w-full items-center justify-between gap-3 rounded-2xl bg-white px-4 py-3 text-left text-lg font-semibold shadow-sm ring-1 ring-black/5 transition active:scale-[0.99]'
+
+/** Beranda: pilih Desa lalu Kelompok. Kelompok yang pernah dipilih langsung dibuka. */
 export function HomePage() {
-  const qc = useQueryClient()
+  const [params, setParams] = useSearchParams()
+  const changing = params.has('ganti')
+  const saved = getKelompok()
   const { data, isPending, isError, refetch } = useQuery({
-    queryKey: ['summaries'],
-    queryFn: fetchSummaries,
-    staleTime: 0,
+    queryKey: ['structure'],
+    queryFn: fetchStructure,
+    staleTime: 5 * 60_000,
+    enabled: changing || !saved,
   })
 
-  useRealtime('home', [{ table: 'attendance' }, { table: 'sessions' }], () =>
-    qc.invalidateQueries({ queryKey: ['summaries'] }),
-  )
-  // Muat ulang tepat saat sebuah sesi dibuka atau lewat batas pengisian.
-  useNow(data?.flatMap((c) => [c.session_closes_at, c.next_opens_at]) ?? [], () =>
-    qc.invalidateQueries({ queryKey: ['summaries'] }),
-  )
+  if (saved && !changing) return <Navigate to={`/g/${saved.slug}`} replace />
+
+  const desaSlug = params.get('desa')
+  const daerah = data?.find((u) => u.level === 'daerah')
+  const desaList = data ? childrenOf(data, daerah?.id ?? null) : []
+  const desa = desaSlug ? data?.find((u) => u.level === 'desa' && u.slug === desaSlug) : undefined
+  const kelompokList = data && desa ? childrenOf(data, desa.id) : []
+
+  const pickDesa = (slug: string | null) => {
+    const next = new URLSearchParams(params)
+    if (slug) next.set('desa', slug)
+    else next.delete('desa')
+    setParams(next)
+  }
 
   return (
     <div className="min-h-dvh">
-      <PublicHeader title="Absensi" subtitle="Pilih kategori untuk mengisi kehadiran" />
+      <PublicHeader
+        title={desa ? `Desa ${desa.name}` : 'Absensi'}
+        subtitle={desa ? 'Pilih kelompok Anda' : 'Pilih desa Anda'}
+        left={
+          desa ? (
+            <button
+              type="button"
+              onClick={() => pickDesa(null)}
+              className="-ml-2 mb-1 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-brand-100"
+            >
+              ‹ Pilih desa
+            </button>
+          ) : saved ? (
+            <Link
+              to={`/g/${saved.slug}`}
+              className="-ml-2 mb-1 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-brand-100"
+            >
+              ‹ Kembali ke {saved.name}
+            </Link>
+          ) : undefined
+        }
+      />
       <main className="mx-auto max-w-xl px-4 py-4">
         {isPending && <p className="py-10 text-center text-muted">Memuat…</p>}
         {isError && (
@@ -41,56 +73,37 @@ export function HomePage() {
             </button>
           </div>
         )}
-        {data && data.length === 0 && (
+        {data && !desa && desaList.length === 0 && (
           <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
-            <p className="text-lg font-semibold">Belum ada kategori</p>
-            <p className="mt-1 text-muted">Admin belum menambahkan kategori. Silakan cek lagi nanti.</p>
+            <p className="text-lg font-semibold">Belum ada desa</p>
+            <p className="mt-1 text-muted">Pengurus belum menyiapkan data. Silakan cek lagi nanti.</p>
           </div>
         )}
+        {data && desa && kelompokList.length === 0 && (
+          <p className="py-10 text-center text-muted">Belum ada kelompok di desa ini.</p>
+        )}
         <ul className="flex flex-col gap-3">
-          {data?.map((c) => {
-            const all = stat(c.present, c.total)
-            return (
-              <li key={c.category_id}>
-                <Link
-                  to={`/k/${c.slug}`}
-                  className="block rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 transition active:scale-[0.99]"
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h2 className="text-lg font-bold break-words">
-                        {c.name}{' '}
-                        {c.pin_enabled && (
-                          <span aria-label="Memakai PIN" title="Memakai PIN">
-                            🔒
-                          </span>
-                        )}
-                      </h2>
-                      <p className="text-muted">{summarySessionText(c)}</p>
-                    </div>
-                    {c.session_id && (
-                      <span className="shrink-0 text-3xl font-bold tabular-nums text-brand-700">{all.percent}%</span>
-                    )}
-                  </div>
-                  {c.session_id && (
-                    <>
-                      <div className="mt-3">
-                        <ProgressBar percent={all.percent} />
-                      </div>
-                      <div className="mt-2 flex flex-wrap justify-between gap-x-4 text-muted">
-                        <span>
-                          {c.present}/{c.total} hadir
-                        </span>
-                        <span className="tabular-nums">
-                          L {stat(c.present_l, c.total_l).percent}% · P {stat(c.present_p, c.total_p).percent}%
-                        </span>
-                      </div>
-                    </>
-                  )}
-                </Link>
+          {!desa &&
+            desaList.map((d) => (
+              <li key={d.id}>
+                <button type="button" className={itemClass} onClick={() => pickDesa(d.slug)}>
+                  <span className="break-words">{d.name}</span>
+                  <span aria-hidden className="text-2xl text-muted">
+                    ›
+                  </span>
+                </button>
               </li>
-            )
-          })}
+            ))}
+          {kelompokList.map((k) => (
+            <li key={k.id}>
+              <Link to={`/g/${k.slug}`} className={itemClass}>
+                <span className="break-words">{k.name}</span>
+                <span aria-hidden className="text-2xl text-muted">
+                  ›
+                </span>
+              </Link>
+            </li>
+          ))}
         </ul>
       </main>
     </div>

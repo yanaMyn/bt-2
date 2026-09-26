@@ -13,6 +13,43 @@ export interface ReportData {
   membersBySession: Map<string, string[]>
   /** session_id -> (member_id -> status_id) */
   attendanceBySession: Map<string, Map<string, string>>
+  /** session_id -> (member_id -> kelompok asal pada sesi itu) */
+  kelompokBySession: Map<string, Map<string, string>>
+}
+
+/** Batasi peserta tiap sesi ke kelompok asal tertentu (laporan kegiatan Desa/Daerah per kelompok). */
+export function filterByKelompok(data: ReportData, kelompokId: string | null): ReportData {
+  if (!kelompokId) return data
+  const membersBySession = new Map<string, string[]>()
+  for (const [sid, ids] of data.membersBySession) {
+    const k = data.kelompokBySession.get(sid)
+    membersBySession.set(
+      sid,
+      ids.filter((id) => k?.get(id) === kelompokId),
+    )
+  }
+  return { ...data, membersBySession }
+}
+
+/**
+ * Kelompok asal tiap jamaah pada sesi terbarunya (sesi urut terbaru dulu), untuk kolom "Kelompok".
+ * Juga dipakai untuk daftar pilihan filter kelompok.
+ */
+export function latestKelompok(data: ReportData): Map<string, string> {
+  const out = new Map<string, string>()
+  for (const s of data.sessions) {
+    for (const [memberId, kelompokId] of data.kelompokBySession.get(s.id) ?? []) {
+      if (!out.has(memberId)) out.set(memberId, kelompokId)
+    }
+  }
+  return out
+}
+
+/** Kelompok asal yang muncul di sesi mana pun. */
+export function kelompokIds(data: ReportData): Set<string> {
+  const out = new Set<string>()
+  for (const m of data.kelompokBySession.values()) for (const k of m.values()) out.add(k)
+  return out
 }
 
 const byName = (a: Member, b: Member) => a.name.localeCompare(b.name, 'id', { sensitivity: 'base' })

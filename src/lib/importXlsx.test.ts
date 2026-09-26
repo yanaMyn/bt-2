@@ -4,6 +4,8 @@ import {
   classifyImportRows,
   ImportFormatError,
   isXlsxFile,
+  normalizeBirth,
+  normalizeMarital,
   normalizeGender,
   parseWorkbook,
   templateWorkbook,
@@ -26,8 +28,8 @@ describe('parseWorkbook', () => {
       ]),
     )
     expect(rows).toEqual([
-      { rowNumber: 2, rawName: 'Budi', rawGender: 'L' },
-      { rowNumber: 4, rawName: 'Citra', rawGender: 'p' },
+      { rowNumber: 2, rawName: 'Budi', rawGender: 'L', rawBirth: '', rawMarital: '' },
+      { rowNumber: 4, rawName: 'Citra', rawGender: 'p', rawBirth: '', rawMarital: '' },
     ])
   })
 
@@ -37,7 +39,7 @@ describe('parseWorkbook', () => {
 
   it('template yang diunduh bisa dibaca kembali', () => {
     const buf = XLSX.write(templateWorkbook(), { type: 'array', bookType: 'xlsx' })
-    expect(parseWorkbook(buf).map((r) => r.rawName)).toEqual(['Ahmad Fauzi', 'Citra Dewi'])
+    expect(parseWorkbook(buf).map((r) => r.rawName)).toEqual(['Ahmad Fauzi', 'Citra Dewi', 'Siti Aminah'])
   })
 })
 
@@ -59,7 +61,13 @@ describe('normalizeGender', () => {
 })
 
 describe('classifyImportRows', () => {
-  const row = (n: number, rawName: string, rawGender: string) => ({ rowNumber: n, rawName, rawGender })
+  const row = (n: number, rawName: string, rawGender: string, rawBirth: unknown = '', rawMarital = '') => ({
+    rowNumber: n,
+    rawName,
+    rawGender,
+    rawBirth,
+    rawMarital,
+  })
 
   it('mengklasifikasikan valid, tidak valid, dan duplikat', () => {
     const result = classifyImportRows(
@@ -72,6 +80,7 @@ describe('classifyImportRows', () => {
         row(7, 'Budi', 'P'),
       ],
       [{ name: 'Budi', gender: 'L' }],
+      '2026-10-05',
     )
     expect(result.map((r) => [r.rowNumber, r.kind, r.name, r.gender])).toEqual([
       [2, 'valid', 'Ahmad Fauzi', 'L'],
@@ -80,6 +89,60 @@ describe('classifyImportRows', () => {
       [5, 'duplicate', 'budi', 'L'],
       [6, 'duplicate', 'Ahmad Fauzi', 'L'],
       [7, 'valid', 'Budi', 'P'],
+    ])
+  })
+})
+
+describe('tanggal lahir & status nikah', () => {
+  const T = '2026-10-05'
+  it('normalizeBirth: Date Excel, DD/MM/YYYY, YYYY-MM-DD, kosong, tidak valid, masa depan', () => {
+    expect(normalizeBirth(new Date(2012, 4, 12), T)).toEqual({ value: '2012-05-12' })
+    expect(normalizeBirth('12/05/2012', T)).toEqual({ value: '2012-05-12' })
+    expect(normalizeBirth('2012-5-12', T)).toEqual({ value: '2012-05-12' })
+    expect(normalizeBirth('  ', T)).toEqual({ value: null })
+    expect(normalizeBirth('31/02/2012', T)).toEqual({ error: 'Tanggal lahir tidak valid' })
+    expect(normalizeBirth('kemarin', T)).toEqual({ error: 'Tanggal lahir "kemarin" tidak terbaca' })
+    expect(normalizeBirth('2027-01-01', T)).toEqual({ error: 'Tanggal lahir di masa depan' })
+  })
+
+  it('normalizeMarital', () => {
+    expect(['', 'Belum', 'belum menikah', 'Menikah', 'Janda', 'duda', 'Janda/Duda', 'cerai'].map(normalizeMarital)).toEqual([
+      'belum',
+      'belum',
+      'belum',
+      'menikah',
+      'janda_duda',
+      'janda_duda',
+      'janda_duda',
+      null,
+    ])
+  })
+
+  it('klasifikasi: tanggal/status tidak valid dilewati, tanpa tanggal lahir ditandai belum lengkap', () => {
+    const r = (n: number, birth: unknown, marital: string) => ({
+      rowNumber: n,
+      rawName: `Orang ${n}`,
+      rawGender: 'L',
+      rawBirth: birth,
+      rawMarital: marital,
+    })
+    const out = classifyImportRows([r(2, '12/05/2012', 'Belum'), r(3, '', 'Menikah'), r(4, 'x', ''), r(5, '', 'cerai')], [], T)
+    expect(out.map((o) => [o.kind, o.birth_date, o.marital, o.incomplete])).toEqual([
+      ['valid', '2012-05-12', 'belum', false],
+      ['valid', null, 'menikah', true],
+      ['invalid', null, 'belum', false],
+      ['invalid', null, null, false],
+    ])
+  })
+
+  it('template berisi 4 kolom dan bisa dibaca kembali dengan tanggal', () => {
+    const buf = XLSX.write(templateWorkbook(), { type: 'array', bookType: 'xlsx' })
+    const rows = parseWorkbook(buf)
+    const out = classifyImportRows(rows, [], T)
+    expect(out.map((o) => [o.name, o.birth_date, o.marital])).toEqual([
+      ['Ahmad Fauzi', '2009-05-12', 'belum'],
+      ['Citra Dewi', '1988-02-14', 'menikah'],
+      ['Siti Aminah', null, 'janda_duda'],
     ])
   })
 })

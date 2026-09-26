@@ -63,7 +63,7 @@ export function CategorySessionsTab({ category }: { category: Category }) {
 
   const refresh = () => {
     void qc.invalidateQueries({ queryKey: ['admin'] })
-    void qc.invalidateQueries({ queryKey: ['summaries'] })
+    void qc.invalidateQueries({ queryKey: ['kelompok-activities'] })
     void qc.invalidateQueries({ queryKey: ['category'] })
   }
 

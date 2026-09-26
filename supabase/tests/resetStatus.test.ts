@@ -16,12 +16,10 @@ const resetStatus = async () =>
 
 beforeEach(async () => {
   db = await createDb()
-  cat = (await asAdmin(db, (tx) => tx.query<{ id: string }>(`select id from create_category('Kelas A')`))).rows[0].id
+  cat = (await asAdmin(db, (tx) => tx.query<{ id: string }>(`select id from create_activity('Kelas A')`))).rows[0].id
   await scheduleSession(db, cat)
   await asAdmin(db, (tx) =>
-    tx.query(`select import_members($1, $2)`, [
-      cat,
-      JSON.stringify([
+    tx.query(`select import_members($1)`, [JSON.stringify([
         { name: 'Ahmad', gender: 'L' },
         { name: 'Budi', gender: 'L' },
         { name: 'Citra', gender: 'P' },
@@ -67,7 +65,7 @@ describe('16.1 status otomatis saat reset', () => {
     await asAdmin(db, (tx) => tx.query(`select set_reset_status($1, $2)`, [cat, izin]))
     expect(await resetStatus()).toBe(izin)
 
-    const other = (await asAdmin(db, (tx) => tx.query<{ id: string }>(`select id from create_category('Kajian')`))).rows[0].id
+    const other = (await asAdmin(db, (tx) => tx.query<{ id: string }>(`select id from create_activity('Kajian')`))).rows[0].id
     const otherAlpa = await statusId('Alpa', other)
     expect(await errorOf(asAdmin(db, (tx) => tx.query(`select set_reset_status($1, $2)`, [cat, otherAlpa])))).toMatch(
       /INVALID_STATUS/,

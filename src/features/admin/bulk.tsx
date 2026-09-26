@@ -1,8 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
 import { useEffect, useState, type ReactNode } from 'react'
-import { ConfirmDialog } from '../../components/ui'
-import { errorMessage } from '../../lib/errors'
-import { membersWithHistory } from './api'
 
 /** Kumpulan id terpilih; id yang tidak lagi ada di `existingIds` dibuang otomatis. */
 export function useSelection(existingIds: readonly string[]) {
@@ -94,65 +90,5 @@ export function BulkBar({ count, onClear, children }: { count: number; onClear: 
         {children}
       </div>
     </div>
-  )
-}
-
-/**
- * Konfirmasi hapus orang secara massal. Memeriksa riwayat dulu; bila ada yang
- * punya catatan kehadiran, admin harus mengetik HAPUS.
- */
-export function BulkDeleteDialog({
-  ids,
-  busy,
-  error,
-  onConfirm,
-  onClose,
-}: {
-  ids: string[]
-  busy: boolean
-  error: string | null
-  onConfirm: () => void
-  onClose: () => void
-}) {
-  const history = useMutation({ mutationFn: () => membersWithHistory(ids) })
-  const run = history.mutate
-  useEffect(() => run(), [run])
-
-  if (history.isPending || history.isIdle) {
-    return (
-      <ConfirmDialog
-        title={`Hapus ${ids.length} orang?`}
-        message="Memeriksa riwayat kehadiran…"
-        confirmLabel="Hapus orang"
-        danger
-        confirmDisabled
-        onConfirm={() => {}}
-        onClose={onClose}
-      />
-    )
-  }
-  const h = history.data ?? { people: 0, records: 0 }
-  return (
-    <ConfirmDialog
-      title={`Hapus ${ids.length} orang?`}
-      message={
-        <div className="flex flex-col gap-2">
-          <p>Orang terpilih akan dihapus permanen dari semua kategori.</p>
-          {h.people > 0 && (
-            <p className="rounded-xl bg-red-50 p-3 text-red-800 ring-1 ring-red-200">
-              <b>{h.people} orang</b> di antaranya punya <b>{h.records} catatan kehadiran</b> yang akan ikut terhapus
-              dari laporan. Bila hanya ingin mengeluarkan dari satu kategori, gunakan "Keluarkan dari kategori".
-            </p>
-          )}
-        </div>
-      }
-      typeToConfirm={h.people > 0 ? 'HAPUS' : undefined}
-      confirmLabel={`Hapus ${ids.length} orang`}
-      danger
-      busy={busy}
-      error={error ?? (history.error ? errorMessage(history.error) : null)}
-      onConfirm={onConfirm}
-      onClose={onClose}
-    />
   )
 }

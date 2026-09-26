@@ -1,7 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type ChangeEvent } from 'react'
-import { useSearchParams } from 'react-router'
-import { Button, Card, ErrorText, Field, inputClass } from '../../components/ui'
+import { Link } from 'react-router'
+import { Button, Card, ErrorText } from '../../components/ui'
+import { MARITAL_LABEL } from '../../lib/criteria'
+import { formatDateShort } from '../../lib/dateRange'
 import { errorMessage } from '../../lib/errors'
 import {
   classifyImportRows,
@@ -11,7 +13,9 @@ import {
   parseWorkbook,
   type ClassifiedRow,
 } from '../../lib/importXlsx'
-import { importMembers, listCategories, listCategoryMembers } from './api'
+import { todayJakarta } from '../../lib/sessionLabel'
+import { importJamaah, listJamaah } from './api'
+import { useProfile } from './profile'
 
 const KIND_STYLE: Record<ClassifiedRow['kind'], { box: string; label: string }> = {
   valid: { box: 'bg-green-50 ring-green-200', label: 'Baru' },
@@ -19,12 +23,11 @@ const KIND_STYLE: Record<ClassifiedRow['kind'], { box: string; label: string }> 
   invalid: { box: 'bg-red-50 ring-red-200', label: 'Tidak valid' },
 }
 
+/** Import jamaah ke kelompok admin yang sedang login (hanya admin Kelompok). */
 export function ImportPage() {
+  const profile = useProfile()
   const qc = useQueryClient()
-  const [params, setParams] = useSearchParams()
-  const categoryId = params.get('kategori') ?? ''
-  const { data: categories } = useQuery({ queryKey: ['admin', 'category-list'], queryFn: listCategories })
-  const category = categories?.find((c) => c.id === categoryId)
+  const { data: jamaah } = useQuery({ queryKey: ['admin', 'jamaah'], queryFn: listJamaah })
 
   const [fileName, setFileName] = useState<string | null>(null)
   const [rows, setRows] = useState<ClassifiedRow[] | null>(null)
@@ -32,6 +35,10 @@ export function ImportPage() {
   const [fileError, setFileError] = useState<string | null>(null)
   const [done, setDone] = useState<string | null>(null)
   const [reading, setReading] = useState(false)
+
+  if (profile.unit_level !== 'kelompok') {
+    return <p className="text-muted">Import jamaah hanya untuk admin Kelompok.</p>
+  }
 
   function clear() {
     setRows(null)
@@ -43,7 +50,7 @@ export function ImportPage() {
   async function onFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = ''
-    if (!file || !categoryId) return
+    if (!file) return
     clear()
     setDone(null)
     if (!isXlsxFile(file.name)) {
@@ -53,8 +60,8 @@ export function ImportPage() {
     setReading(true)
     try {
       const parsed = parseWorkbook(await file.arrayBuffer())
-      const existing = await listCategoryMembers(categoryId)
-      const classified = classifyImportRows(parsed, existing)
+      const existing = (jamaah ?? []).filter((m) => m.kelompok_id === profile.unit_id && !m.inactive_since)
+      const classified = classifyImportRows(parsed, existing, todayJakarta())
       setRows(classified)
       setChecked(new Set(classified.filter((r) => r.kind === 'valid').map((r) => r.rowNumber)))
       setFileName(file.name)
@@ -67,16 +74,15 @@ export function ImportPage() {
 
   const save = useMutation({
     mutationFn: () =>
-      importMembers(
-        categoryId,
-        rows!.filter((r) => checked.has(r.rowNumber) && r.gender).map((r) => ({ name: r.name, gender: r.gender! })),
+      importJamaah(
+        rows!
+          .filter((r) => checked.has(r.rowNumber) && r.gender && r.marital)
+          .map((r) => ({ name: r.name, gender: r.gender!, birth_date: r.birth_date, marital_status: r.marital! })),
       ),
     onSuccess: (count) => {
-      setDone(`${count} anggota ditambahkan ke ${category?.name}`)
+      setDone(`${count} jamaah ditambahkan ke Kelompok ${profile.unit_name}`)
       clear()
       void qc.invalidateQueries({ queryKey: ['admin'] })
-      void qc.invalidateQueries({ queryKey: ['summaries'] })
-      void qc.invalidateQueries({ queryKey: ['category'] })
     },
   })
 
@@ -84,55 +90,42 @@ export function ImportPage() {
     valid: rows.filter((r) => r.kind === 'valid').length,
     duplicate: rows.filter((r) => r.kind === 'duplicate').length,
     invalid: rows.filter((r) => r.kind === 'invalid').length,
+    incomplete: rows.filter((r) => r.kind !== 'invalid' && r.incomplete).length,
   }
 
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <h1 className="text-2xl font-bold">Import anggota (.xlsx)</h1>
-        <p className="text-muted">Satu file untuk satu kategori. Setiap baris selalu dibuat sebagai orang baru.</p>
+        <Link to="/admin/jamaah" className="inline-flex min-h-11 items-center text-brand-700">
+          ‹ Jamaah
+        </Link>
+        <h1 className="text-2xl font-bold">Import jamaah (.xlsx)</h1>
+        <p className="text-muted">
+          Semua baris masuk ke Kelompok <b>{profile.unit_name}</b> sebagai jamaah baru.
+        </p>
       </div>
 
       <Card className="flex flex-col gap-4">
-        <Field label="1. Pilih kategori tujuan">
-          <select
-            className={inputClass}
-            value={categoryId}
-            onChange={(e) => {
-              setParams(e.target.value ? { kategori: e.target.value } : {}, { replace: true })
-              clear()
-              setDone(null)
-            }}
-          >
-            <option value="">— Pilih kategori —</option>
-            {categories?.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </Field>
-
         <div>
-          <p className="mb-1 font-medium">2. Siapkan file</p>
+          <p className="mb-1 font-medium">1. Siapkan file</p>
           <p className="mb-2 text-sm text-muted">
-            Kolom wajib: <b>Nama</b> dan <b>Jenis Kelamin</b> (L/P, Laki-laki, Perempuan).
+            Kolom wajib: <b>Nama</b> dan <b>Jenis Kelamin</b>. Opsional: <b>Tanggal Lahir</b> (DD/MM/YYYY) dan{' '}
+            <b>Status Nikah</b> (Belum, Menikah, Janda, Duda). Tanpa tanggal lahir, jamaah tidak masuk kegiatan berbatas
+            umur.
           </p>
           <Button variant="secondary" onClick={downloadTemplate}>
             ⬇ Unduh template
           </Button>
         </div>
-
         <div>
-          <p className="mb-1 font-medium">3. Unggah file</p>
+          <p className="mb-1 font-medium">2. Unggah file</p>
           <input
             type="file"
             accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            disabled={!categoryId || reading}
+            disabled={reading || !jamaah}
             onChange={onFile}
             className="block w-full text-base file:mr-3 file:min-h-11 file:rounded-xl file:border-0 file:bg-brand-700 file:px-4 file:font-semibold file:text-white disabled:opacity-50"
           />
-          {!categoryId && <p className="mt-1 text-sm text-muted">Pilih kategori terlebih dahulu.</p>}
           {reading && <p className="mt-1 text-muted">Membaca file…</p>}
           <ErrorText>{fileError}</ErrorText>
         </div>
@@ -150,7 +143,7 @@ export function ImportPage() {
             <p className="font-bold">Pratinjau: {fileName}</p>
             <p className="text-sm text-muted">
               {counts.valid} baru · {counts.duplicate} duplikat (tidak dicentang, bisa dicentang bila memang orang
-              berbeda) · {counts.invalid} tidak valid (dilewati)
+              berbeda) · {counts.invalid} tidak valid (dilewati) · {counts.incomplete} tanpa tanggal lahir
             </p>
           </div>
           {rows.length === 0 && <p className="text-muted">File tidak berisi data.</p>}
@@ -160,7 +153,9 @@ export function ImportPage() {
               const disabled = r.kind === 'invalid'
               return (
                 <li key={r.rowNumber}>
-                  <label className={`flex items-center gap-3 rounded-xl p-3 ring-1 ${style.box} ${disabled ? 'opacity-80' : ''}`}>
+                  <label
+                    className={`flex items-center gap-3 rounded-xl p-3 ring-1 ${style.box} ${disabled ? 'opacity-80' : ''}`}
+                  >
                     <input
                       type="checkbox"
                       className="h-6 w-6 shrink-0 accent-brand-700"
@@ -180,9 +175,14 @@ export function ImportPage() {
                         {r.name || <i className="text-muted">(tanpa nama)</i>}{' '}
                         <span className="text-muted">({r.gender ?? (r.rawGender.trim() || '?')})</span>
                       </span>
+                      <span className="block text-sm text-muted">
+                        {r.birth_date ? `Lahir ${formatDateShort(r.birth_date)}` : 'Tanggal lahir kosong'}
+                        {r.marital ? ` · ${MARITAL_LABEL[r.marital]}` : ''}
+                      </span>
                       <span className="text-sm text-muted">
                         Baris {r.rowNumber} · {style.label}
                         {r.reason ? ` — ${r.reason}` : ''}
+                        {r.kind !== 'invalid' && r.incomplete ? ' · data belum lengkap' : ''}
                       </span>
                     </span>
                   </label>
@@ -196,7 +196,7 @@ export function ImportPage() {
               Batal
             </Button>
             <Button onClick={() => save.mutate()} disabled={checked.size === 0 || save.isPending}>
-              {save.isPending ? 'Menyimpan…' : `Import ${checked.size} anggota ke ${category?.name ?? ''}`}
+              {save.isPending ? 'Menyimpan…' : `Import ${checked.size} jamaah`}
             </Button>
           </div>
         </Card>

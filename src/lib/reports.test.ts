@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { memberRecap, sessionRecap, type ReportData } from './reports'
+import { filterByKelompok, kelompokIds, latestKelompok, memberRecap, sessionRecap, type ReportData } from './reports'
 import type { Member, Session, Status } from './types'
 
 const status = (id: string, label: string, present = false, archived = false): Status => ({
@@ -33,9 +33,24 @@ function build(opts: {
   membersBySession: Record<string, string[]>
   attendance: Record<string, Record<string, string>>
   statuses?: Status[]
+  kelompok?: Record<string, Record<string, string>>
 }): ReportData {
   return {
-    category: { id: 'c', name: 'Kelas A', slug: 'kelas-a', pin_enabled: false, is_active: true, created_at: '' },
+    category: {
+      id: 'c',
+      name: 'Kelas A',
+      slug: 'kelas-a',
+      pin_enabled: false,
+      is_active: true,
+      created_at: '',
+      owner_unit_id: 'u',
+      scope_all: true,
+      criteria_gender: null,
+      criteria_min_age: null,
+      criteria_max_age: null,
+      criteria_marital: null,
+    },
+    kelompokBySession: new Map(Object.entries(opts.kelompok ?? {}).map(([k, v]) => [k, new Map(Object.entries(v))])),
     statuses: opts.statuses ?? [status('h', 'Hadir', true), status('i', 'Izin'), status('d', 'Doa', false, true)],
     sessions: opts.sessions,
     members: new Map(opts.members.map((m) => [m.id, m])),
@@ -112,5 +127,35 @@ describe('memberRecap', () => {
       ['Ahmad', 2, 1, 1, 50],
       ['Budi', 1, 0, 1, 0],
     ])
+  })
+})
+
+describe('kelompok asal', () => {
+  // s2 terbaru. Budi pindah dari k1 (s1) ke k2 (s2).
+  const data = build({
+    sessions: [session('s2', true), session('s1', true)],
+    members: [
+      { id: 'a', name: 'Ani', gender: 'P' },
+      { id: 'b', name: 'Budi', gender: 'L' },
+    ],
+    membersBySession: { s1: ['a', 'b'], s2: ['a', 'b'] },
+    attendance: { s1: { a: 'h', b: 'h' }, s2: { b: 'h' } },
+    kelompok: { s1: { a: 'k1', b: 'k1' }, s2: { a: 'k1', b: 'k2' } },
+  })
+
+  it('filter kelompok memakai kelompok asal per sesi', () => {
+    const k1 = memberRecap(filterByKelompok(data, 'k1'), ['s1', 's2'])
+    expect(k1.rows.map((r) => [r.member.name, r.sessions, r.present])).toEqual([
+      ['Ani', 2, 1],
+      ['Budi', 1, 1],
+    ])
+    const k2 = memberRecap(filterByKelompok(data, 'k2'), ['s1', 's2'])
+    expect(k2.rows.map((r) => [r.member.name, r.sessions, r.present])).toEqual([['Budi', 1, 1]])
+    expect(filterByKelompok(data, null)).toBe(data)
+  })
+
+  it('kelompok terbaru per jamaah & daftar kelompok', () => {
+    expect(Object.fromEntries(latestKelompok(data))).toEqual({ a: 'k1', b: 'k2' })
+    expect([...kelompokIds(data)].sort()).toEqual(['k1', 'k2'])
   })
 })

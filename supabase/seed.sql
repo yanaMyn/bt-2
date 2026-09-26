@@ -1,79 +1,99 @@
--- Data contoh untuk pengembangan. Jalankan di Supabase SQL Editor SETELAH semua migrasi.
--- Membuat 2 kategori, 22 anggota (1 orang di dua kategori), 1 sesi selesai, 1 sesi berjalan (sepanjang hari ini)
--- dengan sebagian isian, dan 1 sesi dijadwalkan untuk Kajian Ahad.
-
-select set_config('request.jwt.claims', '{"role":"authenticated"}', false);
+-- Data contoh untuk pengembangan. Jalankan di Supabase SQL Editor SETELAH semua migrasi
+-- (dan sebaiknya setelah bootstrap_root_admin). Memakai Daerah yang ada, atau membuat "Daerah Contoh".
+-- Membuat: Desa CNT (Kelompok Baitul Ilmi, Citra), Desa CNB (Kelompok Cibubur), jamaah beragam umur &
+-- status nikah, kegiatan kelompok dari templat, satu kegiatan Desa dan satu kegiatan Daerah, satu sesi
+-- selesai (Remaja, 29 Agustus 2026), satu sesi berjalan sepanjang hari ini (Remaja), dan satu sesi
+-- dijadwalkan (Desaan CNT, Minggu berikutnya).
 
 do $$
 declare
-  v_kelas uuid;
-  v_kajian uuid;
+  v_daerah uuid;
+  v_cnt uuid;
+  v_cnb uuid;
+  v_bi uuid;
+  v_citra uuid;
+  v_cib uuid;
+  v_remaja uuid;
+  v_desaan uuid;
+  v_past uuid;
   v_hadir uuid;
   v_izin uuid;
-  v_sakit uuid;
+  v_today date := public.today_jakarta();
   v_member record;
   v_i int := 0;
-  v_past uuid;
-  v_today date := public.today_jakarta();
 begin
-  select id into v_kelas from public.create_category('Kelas A');
-  select id into v_kajian from public.create_category('Kajian Ahad');
+  select id into v_daerah from public.org_units where level = 'daerah';
+  if v_daerah is null then
+    insert into public.org_units (level, name, slug) values ('daerah', 'Daerah Contoh', 'daerah-contoh')
+      returning id into v_daerah;
+  end if;
+  insert into public.org_units (level, parent_id, name, slug) values ('desa', v_daerah, 'CNT', 'cnt') returning id into v_cnt;
+  insert into public.org_units (level, parent_id, name, slug) values ('desa', v_daerah, 'CNB', 'cnb') returning id into v_cnb;
+  insert into public.org_units (level, parent_id, name, slug) values ('kelompok', v_cnt, 'Baitul Ilmi', 'baitul-ilmi')
+    returning id into v_bi;
+  insert into public.org_units (level, parent_id, name, slug) values ('kelompok', v_cnt, 'Citra', 'citra')
+    returning id into v_citra;
+  insert into public.org_units (level, parent_id, name, slug) values ('kelompok', v_cnb, 'Cibubur', 'cibubur')
+    returning id into v_cib;
 
-  perform public.import_members(v_kelas, '[
-    {"name":"Ahmad Fauzi","gender":"L"},{"name":"Bagas Pratama","gender":"L"},
-    {"name":"Dimas Saputra","gender":"L"},{"name":"Fajar Nugroho","gender":"L"},
-    {"name":"Hafiz Ramadhan","gender":"L"},{"name":"Ilham Maulana","gender":"L"},
-    {"name":"Citra Dewi","gender":"P"},{"name":"Dinda Lestari","gender":"P"},
-    {"name":"Elsa Rahmawati","gender":"P"},{"name":"Fitri Handayani","gender":"P"},
-    {"name":"Gita Permata","gender":"P"},{"name":"Hana Salsabila","gender":"P"}
-  ]'::jsonb);
-  perform public.import_members(v_kajian, '[
-    {"name":"Budi Santoso","gender":"L"},{"name":"Rizki Hidayat","gender":"L"},
-    {"name":"Yusuf Hakim","gender":"L"},{"name":"Zaki Firmansyah","gender":"L"},
-    {"name":"Aisyah Putri","gender":"P"},{"name":"Nur Azizah","gender":"P"},
-    {"name":"Rina Marlina","gender":"P"},{"name":"Siti Aminah","gender":"P"},
-    {"name":"Umi Kalsum","gender":"P"},{"name":"Wulan Sari","gender":"P"}
-  ]'::jsonb);
-  -- Satu orang tergabung di dua kategori.
-  insert into public.category_members (category_id, member_id)
-    select v_kajian, id from public.members where name = 'Ahmad Fauzi';
+  insert into public.members (name, gender, kelompok_id, birth_date, marital_status) values
+    ('Ahmad Fauzi', 'L', v_bi, '2009-03-12', 'belum'),
+    ('Bagas Pratama', 'L', v_bi, '2008-07-01', 'belum'),
+    ('Dinda Lestari', 'P', v_bi, '2010-01-20', 'belum'),
+    ('Elsa Rahmawati', 'P', v_bi, '2009-11-05', 'belum'),
+    ('Fajar Nugroho', 'L', v_bi, '2017-04-18', 'belum'),
+    ('Gita Permata', 'P', v_bi, '2016-09-09', 'belum'),
+    ('Hana Salsabila', 'P', v_bi, '1985-02-14', 'menikah'),
+    ('Siti Aminah', 'P', v_bi, '1970-06-30', 'janda_duda'),
+    ('Pak Ilham', 'L', v_bi, '1982-12-01', 'menikah'),
+    ('Umi Kalsum', 'P', v_bi, null, 'belum'),
+    ('Rizki Hidayat', 'L', v_citra, '2009-05-05', 'belum'),
+    ('Wulan Sari', 'P', v_citra, '1990-08-17', 'menikah'),
+    ('Yusuf Hakim', 'L', v_cib, '2008-02-02', 'belum');
 
-  select id into v_hadir from public.statuses where category_id = v_kelas and label = 'Hadir';
-  select id into v_izin from public.statuses where category_id = v_kelas and label = 'Izin';
-  select id into v_sakit from public.statuses where category_id = v_kelas and label = 'Sakit';
+  -- Kegiatan: kategori + status bawaan + status otomatis Alpa.
+  insert into public.categories (name, slug, owner_unit_id, criteria_min_age, criteria_max_age)
+    values ('Remaja', 'remaja-baitul-ilmi', v_bi, 16, 19) returning id into v_remaja;
+  insert into public.categories (name, slug, owner_unit_id, criteria_min_age, criteria_max_age)
+    values ('Caberawit', 'caberawit-baitul-ilmi', v_bi, 5, 11);
+  insert into public.categories (name, slug, owner_unit_id, criteria_gender, criteria_marital)
+    values ('Ibu-ibu', 'ibu-ibu-baitul-ilmi', v_bi, 'P', 'pernah');
+  insert into public.categories (name, slug, owner_unit_id)
+    values ('Desaan CNT', 'desaan-cnt', v_cnt) returning id into v_desaan;
+  insert into public.categories (name, slug, owner_unit_id)
+    values ('Pengajian Daerah', 'pengajian-daerah', v_daerah);
+  insert into public.statuses (category_id, label, color, sort_order, counts_as_present)
+    select c.id, s.label, s.color, s.sort_order, s.present
+    from public.categories c
+    cross join (values ('Hadir', '#16a34a', 1, true), ('Izin', '#eab308', 2, false),
+                       ('Sakit', '#2563eb', 3, false), ('Alpa', '#dc2626', 4, false)) s(label, color, sort_order, present);
+  update public.categories c set reset_status_id = s.id
+    from public.statuses s where s.category_id = c.id and s.label = 'Alpa';
 
-  -- Sesi lampau Kelas A: hampir semua hadir, lalu selesai otomatis karena waktunya sudah lewat.
-  perform public.schedule_sessions(v_kelas, jsonb_build_array(jsonb_build_object(
-    'date', '2026-08-29', 'start', '19:30', 'end', '21:00', 'note', 'Pertemuan akhir Agustus')));
-  select id into v_past from public.sessions where category_id = v_kelas and session_date = '2026-08-29';
-  for v_member in
-    select m.id from public.members m join public.category_members cm on cm.member_id = m.id
-    where cm.category_id = v_kelas order by m.name
-  loop
+  select id into v_hadir from public.statuses where category_id = v_remaja and label = 'Hadir';
+  select id into v_izin from public.statuses where category_id = v_remaja and label = 'Izin';
+
+  -- Sesi lampau Remaja: sebagian hadir, lalu selesai otomatis (yang belum mengisi dicatat Alpa).
+  insert into public.sessions (category_id, session_date, start_time, end_time, note)
+    values (v_remaja, '2026-08-29', '19:30', '21:00', 'Pertemuan akhir Agustus') returning id into v_past;
+  for v_member in select p.member_id from public.activity_participants(v_remaja, '2026-08-29') p loop
     v_i := v_i + 1;
-    insert into public.attendance (session_id, member_id, status_id)
-      values (v_past, v_member.id, case when v_i = 3 then v_izin else v_hadir end);
+    if v_i <= 2 then
+      insert into public.attendance (session_id, member_id, status_id)
+        values (v_past, v_member.member_id, case when v_i = 1 then v_hadir else v_izin end);
+    end if;
   end loop;
-  perform public.finalize_category(v_kelas);
+  perform public.finalize_category(v_remaja);
 
-  -- Sesi berjalan Kelas A sepanjang hari ini (agar contoh selalu bisa diisi).
-  perform public.schedule_sessions(v_kelas, jsonb_build_array(jsonb_build_object(
-    'date', v_today, 'start', '00:00', 'end', '23:59:59', 'note', 'Sesi contoh sepanjang hari')));
+  -- Sesi berjalan Remaja sepanjang hari ini, dengan satu isian.
+  insert into public.sessions (category_id, session_date, start_time, end_time, note)
+    values (v_remaja, v_today, '00:00', '23:59:59', 'Sesi contoh sepanjang hari');
+  insert into public.attendance (session_id, member_id, status_id)
+    select s.id, (select p.member_id from public.activity_participants(v_remaja, v_today) p limit 1), v_hadir
+    from public.sessions s where s.category_id = v_remaja and s.closed_at is null;
 
-  -- Sesi dijadwalkan Kajian Ahad pada hari Minggu berikutnya.
-  perform public.schedule_sessions(v_kajian, jsonb_build_array(jsonb_build_object(
-    'date', v_today + (7 - extract(dow from v_today)::int), 'start', '08:00', 'end', '10:00', 'grace', 6)));
-
-  -- Sesi berjalan Kelas A: sebagian sudah diisi.
-  v_i := 0;
-  for v_member in
-    select m.id from public.members m join public.category_members cm on cm.member_id = m.id
-    where cm.category_id = v_kelas order by m.name limit 7
-  loop
-    v_i := v_i + 1;
-    perform public.set_attendance(v_kelas, v_member.id, case when v_i = 5 then v_sakit else v_hadir end, null);
-  end loop;
+  -- Sesi dijadwalkan Desaan CNT pada hari Minggu berikutnya.
+  insert into public.sessions (category_id, session_date, start_time, end_time, grace_hours)
+    values (v_desaan, v_today + (7 - extract(dow from v_today)::int), '08:00', '10:00', 6);
 end
 $$;
-
-select set_config('request.jwt.claims', '', false);

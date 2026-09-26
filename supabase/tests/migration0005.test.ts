@@ -21,7 +21,7 @@ describe('migrasi 0005 pada database yang sudah berisi PIN hash', () => {
         values ('Kajian', 'kajian', true, extensions.crypt('123456', extensions.gen_salt('bf'))),
                ('Kelas', 'kelas', false, null);`)
 
-    for (const f of files.filter((f) => f >= '20260926000005')) await db.exec(readFileSync(join(DIR, f), 'utf8'))
+    for (const f of files.filter((f) => f.startsWith('20260926000005'))) await db.exec(readFileSync(join(DIR, f), 'utf8'))
 
     const r = await db.query(`select slug, pin_enabled, pin from categories order by slug`)
     expect(r.rows).toEqual([

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { summarySessionText } from './summaryText'
-import type { CategorySummary } from './types'
+import type { ActivityCard } from './types'
 
 const base = {
   session_id: null,
@@ -9,7 +9,7 @@ const base = {
   session_end_time: null,
   next_opens_at: null,
   next_session_label: null,
-} as unknown as CategorySummary
+} as unknown as ActivityCard
 
 describe('summarySessionText', () => {
   it('berjalan', () => {

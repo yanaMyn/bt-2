@@ -10,7 +10,13 @@ export function fileSafe(s: string): string {
     .replace(/\s+/g, '-')
 }
 
-export function sessionRecapSheets(recap: SessionRecap): { name: string; rows: (string | number)[][] }[] {
+/** Nama kelompok asal per jamaah; bila diisi, lembar anggota mendapat kolom "Kelompok". */
+export type KelompokOf = (memberId: string) => string | undefined
+
+export function sessionRecapSheets(
+  recap: SessionRecap,
+  kelompokOf?: KelompokOf,
+): { name: string; rows: (string | number)[][] }[] {
   const { stats } = recap
   return [
     {
@@ -33,20 +39,36 @@ export function sessionRecapSheets(recap: SessionRecap): { name: string; rows: (
     {
       name: 'Anggota',
       rows: [
-        ['No', 'Nama', 'Jenis Kelamin', 'Status'],
-        ...recap.members.map((m, i) => [i + 1, m.member.name, m.member.gender, m.status?.label ?? 'Belum']),
+        ['No', 'Nama', ...(kelompokOf ? ['Kelompok'] : []), 'Jenis Kelamin', 'Status'],
+        ...recap.members.map((m, i) => [
+          i + 1,
+          m.member.name,
+          ...(kelompokOf ? [kelompokOf(m.member.id) ?? ''] : []),
+          m.member.gender,
+          m.status?.label ?? 'Belum',
+        ]),
       ],
     },
   ]
 }
 
-export function memberRecapSheet(recap: MemberRecap): (string | number)[][] {
+export function memberRecapSheet(recap: MemberRecap, kelompokOf?: KelompokOf): (string | number)[][] {
   const cols: Status[] = recap.statuses
   return [
-    ['No', 'Nama', 'Jenis Kelamin', ...cols.map((s) => s.label), 'Belum', 'Jumlah Sesi', '% Hadir'],
+    [
+      'No',
+      'Nama',
+      ...(kelompokOf ? ['Kelompok'] : []),
+      'Jenis Kelamin',
+      ...cols.map((s) => s.label),
+      'Belum',
+      'Jumlah Sesi',
+      '% Hadir',
+    ],
     ...recap.rows.map((r, i) => [
       i + 1,
       r.member.name,
+      ...(kelompokOf ? [kelompokOf(r.member.id) ?? ''] : []),
       r.member.gender,
       ...cols.map((s) => r.counts.get(s.id) ?? 0),
       r.belum,
@@ -63,7 +85,10 @@ export function downloadSheets(fileName: string, sheets: { name: string; rows: (
 }
 
 /** Rekap tanggal/rentang: sheet Rekap (+ daftar sesi & catatan), Per Anggota, dan Status Anggota bila satu sesi. */
-export function rangeRecapSheets(recap: RangeRecap): { name: string; rows: (string | number)[][] }[] {
+export function rangeRecapSheets(
+  recap: RangeRecap,
+  kelompokOf?: KelompokOf,
+): { name: string; rows: (string | number)[][] }[] {
   const { stats } = recap
   const sheets = [
     {
@@ -85,8 +110,8 @@ export function rangeRecapSheets(recap: RangeRecap): { name: string; rows: (stri
         ...recap.sessions.map((s) => [s.label, s.note ?? '']),
       ],
     },
-    { name: 'Per Anggota', rows: memberRecapSheet(recap.members) },
+    { name: 'Per Anggota', rows: memberRecapSheet(recap.members, kelompokOf) },
   ]
-  if (recap.single) sheets.push({ ...sessionRecapSheets(recap.single)[1], name: 'Status Anggota' })
+  if (recap.single) sheets.push({ ...sessionRecapSheets(recap.single, kelompokOf)[1], name: 'Status Anggota' })
   return sheets
 }

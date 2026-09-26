@@ -6,7 +6,7 @@ import { InactiveBadge } from './InactiveBadge'
  * Nilai ditulis di ujung batang dengan warna teks; detail angka ada di bawah nama.
  */
 export function CategoryCompareChart({ items, caption }: { items: CompareItem[]; caption: string }) {
-  if (items.length === 0) return <p className="text-muted">Belum ada kategori.</p>
+  if (items.length === 0) return <p className="text-muted">Belum ada kegiatan.</p>
   return (
     <figure>
       <figcaption className="mb-3 text-sm text-muted">{caption}</figcaption>

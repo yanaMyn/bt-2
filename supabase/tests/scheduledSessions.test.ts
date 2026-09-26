@@ -9,9 +9,9 @@ let hadir: string
 
 beforeEach(async () => {
   db = await createDb()
-  cat = (await asAdmin(db, (tx) => tx.query<{ id: string }>(`select id from create_category('Kelas A')`))).rows[0].id
+  cat = (await asAdmin(db, (tx) => tx.query<{ id: string }>(`select id from create_activity('Kelas A')`))).rows[0].id
   await asAdmin(db, (tx) =>
-    tx.query(`select import_members($1, '[{"name":"Ahmad","gender":"L"},{"name":"Budi","gender":"L"}]')`, [cat]),
+    tx.query(`select import_members('[{"name":"Ahmad","gender":"L"},{"name":"Budi","gender":"L"}]')`),
   )
   budi = (await db.query<{ id: string }>(`select id from members where name = 'Budi'`)).rows[0].id
   hadir = (await db.query<{ id: string }>(`select id from statuses where label = 'Hadir'`)).rows[0].id
@@ -176,7 +176,7 @@ describe('1.5 ringkasan & statistik', () => {
     asAnon(db, (tx) =>
       tx.query<{ running: boolean; next: boolean; start: string | null }>(
         `select session_id is not null running, next_opens_at is not null next,
-                to_char(session_start_time, 'HH24:MI') start from category_summary`,
+                to_char(session_start_time, 'HH24:MI') start from public_kelompok_activities((select id from org_units where slug = 'baitul-ilmi'))`,
       ),
     )
 
@@ -197,6 +197,6 @@ describe('1.5 ringkasan & statistik', () => {
   it('session_stats mengabaikan sesi dijadwalkan', async () => {
     await scheduleSession(db, cat)
     await scheduleSession(db, cat, { dayOffset: 1, start: '19:30', end: '21:00' })
-    expect((await asAnon(db, (tx) => tx.query(`select 1 from session_stats`))).rows).toHaveLength(1)
+    expect((await asAdmin(db, (tx) => tx.query(`select 1 from session_stats`))).rows).toHaveLength(1)
   })
 })

@@ -9,9 +9,9 @@ let hadir: string
 
 beforeEach(async () => {
   db = await createDb()
-  cat = (await asAdmin(db, (tx) => tx.query<{ id: string }>(`select id from create_category('Kelas A')`))).rows[0].id
+  cat = (await asAdmin(db, (tx) => tx.query<{ id: string }>(`select id from create_activity('Kelas A')`))).rows[0].id
   await asAdmin(db, (tx) =>
-    tx.query(`select import_members($1, '[{"name":"Ahmad","gender":"L"},{"name":"Budi","gender":"L"}]')`, [cat]),
+    tx.query(`select import_members('[{"name":"Ahmad","gender":"L"},{"name":"Budi","gender":"L"}]')`),
   )
   budi = (await db.query<{ id: string }>(`select id from members where name = 'Budi'`)).rows[0].id
   hadir = (await db.query<{ id: string }>(`select id from statuses where label = 'Hadir'`)).rows[0].id
@@ -41,9 +41,10 @@ describe('akhiri sesi', () => {
     await end()
     expect(await errorOf(fill())).toMatch(/NO_ACTIVE_SESSION/)
     const sum = await asAnon(db, (tx) =>
-      tx.query(`select name, session_id, session_label, total, present from category_summary`),
+      tx.query(`select name, session_id, session_label, total, present from public_kelompok_activities((select id from org_units where slug = 'baitul-ilmi'))`),
     )
-    expect(sum.rows).toEqual([{ name: 'Kelas A', session_id: null, session_label: null, total: 2, present: 0 }])
+    // Tanpa sesi berjalan, kartu tidak menampilkan hitungan.
+    expect(sum.rows).toEqual([{ name: 'Kelas A', session_id: null, session_label: null, total: 0, present: 0 }])
     expect(await errorOf(end())).toMatch(/NO_ACTIVE_SESSION/)
   })
 

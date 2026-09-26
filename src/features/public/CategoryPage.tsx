@@ -8,11 +8,11 @@ import { useToast } from '../../components/Toast'
 import { useNow } from '../../hooks/useNow'
 import { payloadValue, useRealtime } from '../../hooks/useRealtime'
 import { errorCode, errorMessage } from '../../lib/errors'
+import { getKelompok } from '../../lib/kelompokStore'
 import { clearPin, getPin, setPin } from '../../lib/pinStore'
 import { formatTimeRange, opensText } from '../../lib/sessionTime'
 import { computeStats } from '../../lib/stats'
-import type { Member } from '../../lib/types'
-import { fetchCategoryPage, setAttendance, type CategoryPageData } from './api'
+import { fetchCategoryPage, setAttendance, type CategoryPageData, type Participant } from './api'
 import { PinPad } from './PinPad'
 import { StatusSheet } from './StatusSheet'
 
@@ -28,8 +28,11 @@ export function CategoryPage() {
     staleTime: 0,
   })
 
+  const saved = getKelompok()
   const [search, setSearch] = useState('')
-  const [sheetMember, setSheetMember] = useState<Member | null>(null)
+  // Default: kelompok yang tersimpan di perangkat; '' = semua kelompok.
+  const [kelompokFilter, setKelompokFilter] = useState(saved?.id ?? '')
+  const [sheetMember, setSheetMember] = useState<Participant | null>(null)
   // Dinaikkan saat PIN disimpan/dihapus agar gerbang PIN dievaluasi ulang.
   const [, setPinVersion] = useState(0)
 
@@ -47,17 +50,29 @@ export function CategoryPage() {
   // Beralih tampilan tepat saat sesi berikutnya dibuka atau sesi berjalan lewat batas.
   useNow([data?.session?.closes_at, data?.next?.opens_at], () => void qc.invalidateQueries({ queryKey: key }))
 
+  const kelompokOptions = useMemo(() => {
+    const m = new Map<string, string>()
+    for (const p of data?.members ?? []) m.set(p.kelompok_id, p.kelompok_name)
+    return [...m].sort((a, b) => a[1].localeCompare(b[1], 'id', { sensitivity: 'base' }))
+  }, [data])
+  // Kelompok tersimpan yang bukan peserta kegiatan ini diperlakukan sebagai "Semua kelompok".
+  const kelompok = kelompokOptions.some(([id]) => id === kelompokFilter) ? kelompokFilter : ''
+  const scoped = useMemo(
+    () => (data ? (kelompok ? data.members.filter((m) => m.kelompok_id === kelompok) : data.members) : []),
+    [data, kelompok],
+  )
+
   const stats = useMemo(() => {
     if (!data) return null
     const present = new Set(data.statuses.filter((s) => s.counts_as_present).map((s) => s.id))
-    return computeStats(data.members, data.attendance, present)
-  }, [data])
+    return computeStats(scoped, data.attendance, present)
+  }, [data, scoped])
 
   const filtered = useMemo(() => {
     const q = search.trim().toLocaleLowerCase('id')
-    if (!data) return []
-    return q ? data.members.filter((m) => m.name.toLocaleLowerCase('id').includes(q)) : data.members
-  }, [data, search])
+    return q ? scoped.filter((m) => m.name.toLocaleLowerCase('id').includes(q)) : scoped
+  }, [scoped, search])
+  const showKelompok = !kelompok && kelompokOptions.length > 1
 
   if (isPending) return <p className="py-16 text-center text-muted">Memuat…</p>
   if (isError)
@@ -76,7 +91,7 @@ export function CategoryPage() {
   if (!data)
     return (
       <div className="mx-auto max-w-xl p-4 text-center">
-        <p className="mt-16 text-xl font-bold">Kategori tidak ditemukan</p>
+        <p className="mt-16 text-xl font-bold">Kegiatan tidak ditemukan</p>
         <Link
           to="/"
           className="mt-4 inline-flex min-h-12 items-center rounded-xl bg-brand-700 px-5 font-semibold text-white"
@@ -99,11 +114,11 @@ export function CategoryPage() {
     })
   }
 
-  async function save(member: Member, statusId: string | null, previous: string | null, isUndo = false) {
+  async function save(member: Participant, statusId: string | null, previous: string | null, isUndo = false) {
     patchAttendance(member.id, statusId)
     try {
       await setAttendance({ categoryId: category.id, memberId: member.id, statusId, pin: getPin(category.id) })
-      void qc.invalidateQueries({ queryKey: ['summaries'] })
+      void qc.invalidateQueries({ queryKey: ['kelompok-activities'] })
       if (isUndo) {
         toast({ message: `Dibatalkan: ${member.name}` })
       } else {
@@ -124,7 +139,7 @@ export function CategoryPage() {
           tone: 'error',
           message:
             code === 'PIN_REQUIRED'
-              ? 'Kategori ini sekarang memakai PIN. Masukkan PIN.'
+              ? 'Kegiatan ini sekarang memakai PIN. Masukkan PIN.'
               : 'PIN sudah berubah. Masukkan PIN baru.',
         })
       } else if (code === 'NO_ACTIVE_SESSION') {
@@ -151,8 +166,11 @@ export function CategoryPage() {
         }
         note={data.session?.note}
         left={
-          <Link to="/" className="-ml-2 mb-1 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-brand-100">
-            ‹ Semua kategori
+          <Link
+            to={saved ? `/g/${saved.slug}` : '/'}
+            className="-ml-2 mb-1 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-brand-100"
+          >
+            ‹ Semua kegiatan
           </Link>
         }
       />
@@ -197,7 +215,27 @@ export function CategoryPage() {
               </section>
             )}
 
-            <div className="sticky top-0 z-10 -mx-4 mt-4 bg-surface/95 px-4 py-3 backdrop-blur">
+            <div className="sticky top-0 z-10 -mx-4 mt-4 flex flex-col gap-2 bg-surface/95 px-4 py-3 backdrop-blur">
+              {kelompokOptions.length > 1 && (
+                <>
+                  <label className="sr-only" htmlFor="kelompok">
+                    Kelompok
+                  </label>
+                  <select
+                    id="kelompok"
+                    value={kelompok}
+                    onChange={(e) => setKelompokFilter(e.target.value)}
+                    className="min-h-13 w-full rounded-2xl border border-gray-300 bg-white px-4 text-lg outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-500/30"
+                  >
+                    <option value="">Semua kelompok</option>
+                    {kelompokOptions.map(([id, name]) => (
+                      <option key={id} value={id}>
+                        Kelompok {name}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
               <label className="sr-only" htmlFor="search">
                 Cari nama
               </label>
@@ -213,8 +251,8 @@ export function CategoryPage() {
               />
             </div>
 
-            {data.members.length === 0 ? (
-              <p className="py-10 text-center text-muted">Belum ada anggota di kategori ini.</p>
+            {scoped.length === 0 ? (
+              <p className="py-10 text-center text-muted">Belum ada peserta untuk kegiatan ini.</p>
             ) : filtered.length === 0 ? (
               <p className="py-10 text-center text-muted">Nama tidak ditemukan</p>
             ) : (
@@ -226,7 +264,10 @@ export function CategoryPage() {
                       onClick={() => setSheetMember(m)}
                       className="flex min-h-16 w-full items-center justify-between gap-3 px-4 py-2 text-left active:bg-gray-50"
                     >
-                      <span className="min-w-0 flex-1 text-lg break-words">{m.name}</span>
+                      <span className="min-w-0 flex-1 text-lg break-words">
+                        {m.name}
+                        {showKelompok && <span className="block text-sm text-muted">{m.kelompok_name}</span>}
+                      </span>
                       <StatusPill status={statusById.get(data.attendance.get(m.id) ?? '')} />
                     </button>
                   </li>

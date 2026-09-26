@@ -4,22 +4,22 @@ import { ErrorText } from '../../components/ui'
 import { errorMessage } from '../../lib/errors'
 import { getCategory } from './api'
 import { InactiveBadge } from './InactiveBadge'
-import { CategoryMembersTab } from './CategoryMembersTab'
+import { ParticipantsTab } from './ParticipantsTab'
 import { CategorySessionsTab } from './CategorySessionsTab'
 import { CategorySettingsTab } from './CategorySettingsTab'
 import { CategoryStatusesTab } from './CategoryStatusesTab'
 
 const TABS = [
-  { id: 'anggota', label: 'Anggota' },
+  { id: 'peserta', label: 'Peserta' },
   { id: 'status', label: 'Status' },
   { id: 'sesi', label: 'Sesi' },
   { id: 'pengaturan', label: 'Pengaturan' },
 ] as const
 
-export function CategoryDetailPage() {
+export function KegiatanDetailPage() {
   const { id = '' } = useParams()
   const [params, setParams] = useSearchParams()
-  const tab = params.get('tab') ?? 'anggota'
+  const tab = params.get('tab') ?? 'peserta'
   const {
     data: category,
     isPending,
@@ -34,8 +34,8 @@ export function CategoryDetailPage() {
   if (!category)
     return (
       <div>
-        <p className="font-bold">Kategori tidak ditemukan.</p>
-        <Link to="/admin/kategori" className="text-brand-700">
+        <p className="font-bold">Kegiatan tidak ditemukan.</p>
+        <Link to="/admin/kegiatan" className="text-brand-700">
           ‹ Kembali
         </Link>
       </div>
@@ -44,8 +44,8 @@ export function CategoryDetailPage() {
   return (
     <div className="flex flex-col gap-4">
       <div>
-        <Link to="/admin/kategori" className="inline-flex min-h-11 items-center text-brand-700">
-          ‹ Semua kategori
+        <Link to="/admin/kegiatan" className="inline-flex min-h-11 items-center text-brand-700">
+          ‹ Semua kegiatan
         </Link>
         <h1 className="text-2xl font-bold break-words">
           {category.name} {category.pin_enabled && <span title="PIN aktif">🔒</span>}{' '}
@@ -75,7 +75,7 @@ export function CategoryDetailPage() {
           </button>
         ))}
       </nav>
-      {tab === 'anggota' && <CategoryMembersTab category={category} />}
+      {tab === 'peserta' && <ParticipantsTab category={category} />}
       {tab === 'status' && <CategoryStatusesTab category={category} />}
       {tab === 'sesi' && <CategorySessionsTab category={category} />}
       {tab === 'pengaturan' && <CategorySettingsTab category={category} />}
