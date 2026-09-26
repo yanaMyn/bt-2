@@ -7,11 +7,11 @@ Memungkinkan admin membuat dan mengelola kategori/grup kehadiran secara dinamis,
 ## Requirements
 
 ### Requirement: CRUD kategori
-Admin SHALL dapat membuat, melihat, mengubah nama, dan menghapus kategori. Setiap kategori SHALL memiliki nama unik dan slug URL unik yang diturunkan dari nama.
+Admin SHALL dapat membuat, melihat, mengubah nama, dan menghapus kategori. Setiap kategori SHALL memiliki nama unik dan slug URL unik yang diturunkan dari nama. Kategori baru SHALL memiliki status bawaan tetapi belum memiliki sesi; admin menjadwalkan sesi berjam melalui tab Sesi.
 
 #### Scenario: Membuat kategori
 - **WHEN** admin membuat kategori bernama "Kelas A"
-- **THEN** kategori tersimpan dengan slug `kelas-a`, muncul di beranda publik, dan otomatis memiliki satu sesi aktif serta status bawaan
+- **THEN** kategori tersimpan dengan slug `kelas-a`, muncul di beranda publik dengan keterangan "Belum ada jadwal sesi", memiliki status bawaan, dan belum memiliki sesi
 
 #### Scenario: Nama duplikat
 - **WHEN** admin membuat kategori dengan nama yang sudah dipakai kategori lain
