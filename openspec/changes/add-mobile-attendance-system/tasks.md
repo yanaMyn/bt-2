@@ -98,27 +98,27 @@
 
 - [x] 15.1 Migrasi: `session_date` + `note` (<=200), `label` generated dari `format_session_date`, isi data lama (tanggal dari `started_at` WIB, label lama non-bawaan ke `note`), `create_category` memakai tanggal hari ini, `reset_category(p_category_id, p_date, p_note)`, view `category_summary`/`session_stats` dibuat ulang dengan `month` dari `session_date`; verifikasi test PGlite: label "Sabtu, 26 September 2026", migrasi data lama, catatan >200 ditolak, rekap bulan mengikuti `session_date`
 - [x] 15.2 Klien: tipe & helper tanggal (hari ini WIB, format label), `monthRecap`/`availableMonths` memakai `session_date`, ekspor menyertakan catatan; verifikasi test Vitest
-- [ ] 15.3 Admin: dialog reset dengan kalender (default hari ini) + catatan dan pratinjau label; riwayat sesi menampilkan catatan dan "Ubah tanggal/catatan" lewat kalender; laporan menampilkan catatan; verifikasi di browser
-- [ ] 15.4 Halaman kategori publik menampilkan label tanggal + catatan sesi aktif; verifikasi di browser
+- [x] 15.3 Admin: dialog reset dengan kalender (default hari ini) + catatan dan pratinjau label; riwayat sesi menampilkan catatan dan "Ubah tanggal/catatan" lewat kalender; laporan menampilkan catatan; verifikasi di browser
+- [x] 15.4 Halaman kategori publik menampilkan label tanggal + catatan sesi aktif; verifikasi di browser
 - [x] 15.5 Perbarui `supabase/seed.sql` ke skema tanggal sesi; verifikasi test PGlite seed
 
 ## 16. Feedback: otomatis Alpa saat reset & laporan berbasis kalender
 
 - [x] 16.1 Migrasi `categories.reset_status_id` + RPC `set_reset_status`, isi awal dari status "Alpa", `create_category` mengatur Alpa, `delete_status` mengosongkan bila diarsipkan, `reset_category` mengisi anggota snapshot yang belum mengisi; verifikasi test PGlite: reset mengisi Alpa hanya untuk yang belum mengisi, "Tidak ada" tetap Belum, status kategori lain ditolak, arsip mengosongkan pengaturan
 - [x] 16.2 Fungsi murni `rangeRecap`, `compareByRange`, preset tanggal (hari ini/bulan ini/bulan lalu/semua), sesi terdekat, label rentang untuk nama file; verifikasi test Vitest (75% rentang, satu sesi, tanpa sesi, preset di akhir bulan)
-- [ ] 16.3 Laporan: komponen pemilih Tanggal/Rentang dengan kalender & preset; tab Rekap (gabungan + daftar status bila satu sesi + sesi terdekat bila kosong), Per anggota, Grafik; hapus tab Per sesi/Per bulan; ekspor; verifikasi di browser di layar 360px
-- [ ] 16.4 Admin: pengaturan "Status otomatis saat reset" di tab Status dan jumlah anggota yang akan dicatat otomatis di dialog reset; verifikasi di browser reset mengubah "Belum" menjadi Alpa di laporan sesi yang ditutup
+- [x] 16.3 Laporan: komponen pemilih Tanggal/Rentang dengan kalender & preset; tab Rekap (gabungan + daftar status bila satu sesi + sesi terdekat bila kosong), Per anggota, Grafik; hapus tab Per sesi/Per bulan; ekspor; verifikasi di browser di layar 360px
+- [x] 16.4 Admin: pengaturan "Status otomatis saat reset" di tab Status dan jumlah anggota yang akan dicatat otomatis di dialog reset; verifikasi di browser reset mengubah "Belum" menjadi Alpa di laporan sesi yang ditutup
 
 ## 17. Feedback: pisahkan "Akhiri sesi" dan "Buat sesi baru"
 
 - [x] 17.1 Migrasi: RPC `end_session` & `start_session`, `reset_category` menjadi pembungkus, `set_attendance` menolak `NO_ACTIVE_SESSION`, `category_summary` left join sesi aktif; verifikasi test PGlite: akhiri mengisi Alpa & meninggalkan kategori tanpa sesi, pengisian ditolak, sesi kedua ditolak, kategori tanpa sesi tetap di ringkasan
-- [ ] 17.2 Admin tab Sesi: tombol "Buat sesi baru" terpisah (kalender + catatan, nonaktif bila ada sesi aktif), "Akhiri sesi" di baris sesi aktif di sebelah "Ubah tanggal/catatan" dengan dialog jumlah Alpa; hapus kartu "Reset kehadiran"; verifikasi di browser
-- [ ] 17.3 Publik: beranda "Belum ada sesi berjalan" & halaman kategori "Sesi sudah diakhiri…" saat tanpa sesi aktif; verifikasi di browser
+- [x] 17.2 Admin tab Sesi: tombol "Buat sesi baru" terpisah (kalender + catatan, nonaktif bila ada sesi aktif), "Akhiri sesi" di baris sesi aktif di sebelah "Ubah tanggal/catatan" dengan dialog jumlah Alpa; hapus kartu "Reset kehadiran"; verifikasi di browser
+- [x] 17.3 Publik: beranda "Belum ada sesi berjalan" & halaman kategori "Sesi sudah diakhiri…" saat tanpa sesi aktif; verifikasi di browser
 
 ## 18. Feedback: aksi massal di tab Anggota
 
 - [x] 18.1 Migrasi RPC admin `remove_members_from_category`, `delete_members`, `members_with_history` (array id, atomik); verifikasi test PGlite: keluarkan massal, hapus massal beserta riwayat, hitung riwayat, anon ditolak
-- [ ] 18.2 UI pilih banyak (centang per baris, "Pilih semua" hasil pencarian, bilah aksi "N dipilih") di tab Anggota kategori (Keluarkan / Hapus orang) dan menu Anggota (Hapus orang), konfirmasi ketik "HAPUS" bila ada riwayat; verifikasi di browser
+- [x] 18.2 UI pilih banyak (centang per baris, "Pilih semua" hasil pencarian, bilah aksi "N dipilih") di tab Anggota kategori (Keluarkan / Hapus orang) dan menu Anggota (Hapus orang), konfirmasi ketik "HAPUS" bila ada riwayat; verifikasi di browser
 
 ## 19. Feedback: pagination daftar anggota admin
 
@@ -127,5 +127,5 @@
 
 ## 20. Feedback: filter kategori di menu Anggota
 
-- [ ] 20.1 Fungsi murni `filterMembers` (nama + kategori / tanpa kategori) dan dropdown filter di menu Anggota (tersimpan di URL, reset ke halaman 1); verifikasi test Vitest dan di browser
+- [x] 20.1 Fungsi murni `filterMembers` (nama + kategori / tanpa kategori) dan dropdown filter di menu Anggota (tersimpan di URL, reset ke halaman 1); verifikasi test Vitest dan di browser
 
