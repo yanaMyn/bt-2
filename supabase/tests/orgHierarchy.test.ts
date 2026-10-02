@@ -473,6 +473,24 @@ describe('alasan perpindahan', () => {
   })
 })
 
+describe('public_category', () => {
+  it('kegiatan aktif terbaca sama oleh anon dan admin unit lain; nonaktif tidak', async () => {
+    const id = await createActivity(db, org.users.bi, 'Kelompokan')
+    const slug = (await db.query<{ slug: string }>(`select slug from categories where id = $1`, [id])).rows[0].slug
+    const viaRpc = `select id from public_category($1)`
+    // RLS tabel: admin Citra tidak melihat kegiatan Baitul Ilmi.
+    const direct = await asUser(db, org.users.citra, (tx) =>
+      tx.query(`select id from categories where slug = $1`, [slug]),
+    )
+    expect(direct.rows).toHaveLength(0)
+    expect((await asAnon(db, (tx) => tx.query(viaRpc, [slug]))).rows).toEqual([{ id }])
+    expect((await asUser(db, org.users.citra, (tx) => tx.query(viaRpc, [slug]))).rows).toEqual([{ id }])
+
+    await db.query(`update categories set is_active = false where id = $1`, [id])
+    expect((await asAnon(db, (tx) => tx.query(viaRpc, [slug]))).rows).toHaveLength(0)
+  })
+})
+
 describe('3.1 publik', () => {
   it('halaman kelompok hanya berisi kegiatan yang mencakup kelompok, dengan hitungan per kelompok', async () => {
     const bi = await addMembers(db, org.users.bi, [

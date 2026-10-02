@@ -1,6 +1,5 @@
 import { supabase } from '../../lib/supabase'
 import {
-  CATEGORY_COLUMNS,
   type ActivityCard,
   type AttendanceRow,
   type Category,
@@ -52,9 +51,8 @@ export async function currentSession(categoryId: string): Promise<Session | null
 }
 
 export async function fetchCategoryPage(slug: string): Promise<CategoryPageData | null> {
-  const category = unwrap<Category | null>(
-    await supabase.from('categories').select(CATEGORY_COLUMNS).eq('slug', slug).eq('is_active', true).maybeSingle(),
-  )
+  // Lewat RPC agar admin yang sedang login tetap melihat kegiatan di luar cakupannya (sama seperti publik).
+  const category = unwrap<Category[]>(await supabase.rpc('public_category', { p_slug: slug }))[0] ?? null
   if (!category) return null
 
   const [session, next, statuses, members] = await Promise.all([

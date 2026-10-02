@@ -45,6 +45,8 @@ Jalankan di SQL Editor, berurutan, masing-masing sekali:
 4. `20260926000017_transfer_details.sql` — data jamaah (nama, umur, status nikah) pada permintaan pindah
    untuk kelompok tujuan.
 5. `20260926000018_transfer_notes.sql` — alasan (opsional) saat melepas jamaah dan saat menolak permintaan pindah.
+6. `20260926000019_public_category.sql` — halaman kegiatan publik tetap tampil benar saat dibuka di browser yang
+   sedang login sebagai admin unit lain.
 
 Lalu buat Admin Daerah pertama dan deploy Edge Function (dua bagian di bawah). `supabase/seed.sql` (opsional,
 data contoh) dijalankan **setelah** Admin Daerah dibuat.
