@@ -8,11 +8,14 @@ import { StatusPill } from '../../components/StatusPill'
 import { useToast } from '../../components/Toast'
 import { Avatar, Button, buttonClass, EmptyState, inputClass } from '../../components/ui'
 import { useNow } from '../../hooks/useNow'
-import { payloadValue, useRealtime } from '../../hooks/useRealtime'
+import { useDebouncedCallback } from '../../hooks/useDebouncedCallback'
+import { useLiveChannel } from '../../hooks/useLiveChannel'
+import { useRealtime, type RealtimeBinding } from '../../hooks/useRealtime'
 import { errorCode, errorMessage } from '../../lib/errors'
 import { getKelompok } from '../../lib/kelompokStore'
 import { clearPin, getPin, setPin } from '../../lib/pinStore'
 import { formatTimeRange, opensText } from '../../lib/sessionTime'
+import { applyAttendanceChange, type AttendanceEvent } from '../../lib/realtimeAttendance'
 import { computeStats } from '../../lib/stats'
 import { fetchCategoryPage, setAttendance, type CategoryPageData, type Participant } from './api'
 import { PinPad } from './PinPad'
@@ -23,11 +26,14 @@ export function CategoryPage() {
   const qc = useQueryClient()
   const toast = useToast()
   const key = ['category', slug]
+  const resync = () => void qc.invalidateQueries({ queryKey: key })
+  const live = useLiveChannel(resync)
   // staleTime 0: setiap kali halaman dibuka, pengaturan kategori (mis. PIN) diambil ulang dari server.
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: key,
     queryFn: () => fetchCategoryPage(slug),
     staleTime: 0,
+    refetchInterval: live.refetchInterval,
   })
 
   const saved = getKelompok()
@@ -39,15 +45,37 @@ export function CategoryPage() {
   // Dinaikkan saat PIN disimpan/dihapus agar gerbang PIN dievaluasi ulang.
   const [, setPinVersion] = useState(0)
 
+  // Pembaruan langsung (design D1, D2): hanya isian sesi yang tampil, ditambal ke cache tanpa
+  // memuat ulang; perubahan sesi kegiatan ini memicu satu kali muat ulang ter-debounce.
   const sessionId = data?.session?.id
+  const categoryId = data?.category.id
+  const sessionSync = useDebouncedCallback(resync, 3000, 10_000)
+  const bindings = useMemo<RealtimeBinding[]>(
+    () => [
+      ...(sessionId
+        ? ([
+            { table: 'attendance', event: 'INSERT', filter: `session_id=eq.${sessionId}` },
+            { table: 'attendance', event: 'UPDATE', filter: `session_id=eq.${sessionId}` },
+            { table: 'attendance', event: 'DELETE' },
+          ] as const)
+        : []),
+      { table: 'sessions', filter: `category_id=eq.${categoryId}` },
+    ],
+    [sessionId, categoryId],
+  )
   useRealtime(
-    data ? `category:${data.category.id}` : null,
-    [{ table: 'attendance' }, { table: 'sessions', filter: `category_id=eq.${data?.category.id}` }],
+    categoryId && live.enabled ? `category:${categoryId}` : null,
+    bindings,
     (table, payload) => {
-      if (table === 'sessions' || payloadValue(payload, 'session_id') === sessionId) {
-        void qc.invalidateQueries({ queryKey: key })
-      }
+      if (table === 'sessions') return sessionSync.trigger()
+      if (!sessionId) return
+      qc.setQueryData<CategoryPageData | null>(key, (d) => {
+        if (!d) return d
+        const attendance = applyAttendanceChange(d.attendance, payload as unknown as AttendanceEvent, sessionId)
+        return attendance === d.attendance ? d : { ...d, attendance }
+      })
     },
+    live.onStatus,
   )
 
   // Beralih tampilan tepat saat sesi berikutnya dibuka atau sesi berjalan lewat batas.
@@ -114,9 +142,7 @@ export function CategoryPage() {
               Kembali ke beranda
             </Link>
           }
-        >
-          Kegiatan mungkin sudah dinonaktifkan pengurus.
-        </EmptyState>
+        />
       </main>
     )
 

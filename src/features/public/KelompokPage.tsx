@@ -1,17 +1,21 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { CalendarClock, CalendarX, ChevronRight, Lock, RefreshCw, Users } from 'lucide-react'
 import { Link, useParams, useSearchParams } from 'react-router'
 import { heroBackClass, PublicHeader } from '../../components/PublicHeader'
 import { ProgressRing } from '../../components/StatCard'
 import { Badge, Button, buttonClass, EmptyState, LiveDot } from '../../components/ui'
 import { useNow } from '../../hooks/useNow'
-import { useRealtime } from '../../hooks/useRealtime'
+import { useDebouncedCallback } from '../../hooks/useDebouncedCallback'
+import { useLiveChannel } from '../../hooks/useLiveChannel'
+import { payloadValue, useRealtime, type RealtimeBinding } from '../../hooks/useRealtime'
 import { saveKelompok } from '../../lib/kelompokStore'
 import { stat } from '../../lib/stats'
 import { summarySessionText } from '../../lib/summaryText'
 import type { ActivityCard, UnitLevel } from '../../lib/types'
 import { fetchKelompokActivities, fetchStructure } from './api'
+
+const MAX_IN_FILTER = 100
 
 const LEVELS: { value: UnitLevel | ''; label: string }[] = [
   { value: '', label: 'Semua' },
@@ -40,19 +44,46 @@ export function KelompokPage() {
   const kelompok = structure.data?.find((u) => u.level === 'kelompok' && u.slug === kelompokSlug)
   const desa = structure.data?.find((u) => u.id === kelompok?.parent_id)
   const key = ['kelompok-activities', kelompok?.id]
+  const resync = () => void qc.invalidateQueries({ queryKey: key })
+  const live = useLiveChannel(resync)
   const activities = useQuery({
     queryKey: key,
     queryFn: () => fetchKelompokActivities(kelompok!.id),
     enabled: !!kelompok,
     staleTime: 0,
+    refetchInterval: live.refetchInterval,
   })
 
   useEffect(() => {
     if (kelompok) saveKelompok({ id: kelompok.id, slug: kelompok.slug, name: kelompok.name })
   }, [kelompok])
 
-  useRealtime(kelompok ? `kelompok:${kelompok.id}` : null, [{ table: 'attendance' }, { table: 'sessions' }], () =>
-    qc.invalidateQueries({ queryKey: key }),
+  // Pembaruan langsung (design D1, D3): hanya isian sesi berjalan yang tampil di halaman ini
+  // (difilter di server) dan perubahan jadwal sesi; rentetan event = satu kali muat ulang.
+  const runningIds = useMemo(
+    () => [...new Set((activities.data ?? []).flatMap((c) => (c.session_id ? [c.session_id] : [])))].sort(),
+    [activities.data],
+  )
+  const reload = useDebouncedCallback(resync, 3000, 10_000)
+  const bindings = useMemo<RealtimeBinding[]>(() => {
+    if (runningIds.length === 0) return [{ table: 'sessions' }]
+    // Filter `in` dibatasi 100 nilai; di atas itu event disaring di klien.
+    const filter = runningIds.length <= MAX_IN_FILTER ? `session_id=in.(${runningIds.join(',')})` : undefined
+    return [
+      { table: 'attendance', event: 'INSERT', filter },
+      { table: 'attendance', event: 'UPDATE', filter },
+      { table: 'attendance', event: 'DELETE' },
+      { table: 'sessions' },
+    ]
+  }, [runningIds])
+  useRealtime(
+    kelompok && live.enabled ? `kelompok:${kelompok.id}` : null,
+    bindings,
+    (table, payload) => {
+      if (table === 'attendance' && !runningIds.includes(String(payloadValue(payload, 'session_id')))) return
+      reload.trigger()
+    },
+    live.onStatus,
   )
   // Muat ulang tepat saat sebuah sesi dibuka atau lewat batas pengisian.
   useNow(activities.data?.flatMap((c) => [c.session_closes_at, c.next_opens_at]) ?? [], () =>
@@ -125,7 +156,6 @@ export function KelompokPage() {
         </div>
       </PublicHeader>
       <main className="relative mx-auto -mt-4 max-w-xl px-4">
-
         {loading && (
           <ul className="flex flex-col gap-3" aria-label="Memuat">
             {[0, 1, 2].map((i) => (
