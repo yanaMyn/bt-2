@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { BottomSheet } from '../../components/BottomSheet'
 import { useToast } from '../../components/Toast'
-import { Button, Card, ConfirmDialog, ErrorText, Field, inputClass } from '../../components/ui'
+import { Button, Card, ConfirmDialog, ErrorText, Field, inputClass, PageHeader } from '../../components/ui'
 import { childrenOf } from '../../lib/criteria'
 import { errorMessage } from '../../lib/errors'
 import { MIN_PASSWORD, USERNAME_RE } from '../../../supabase/functions/admin-accounts/logic'
@@ -37,13 +37,11 @@ export function AdminsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-bold">Admin {noun}</h1>
-        <p className="text-muted">
-          Akun login admin tiap {noun.toLowerCase()}. Password sementara wajib diganti saat login pertama. Satu{' '}
-          {noun.toLowerCase()} boleh punya beberapa admin.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Kelola"
+        title={`Admin ${noun}`}
+        description={`Akun login admin tiap ${noun.toLowerCase()}. Password sementara wajib diganti saat login pertama. Satu ${noun.toLowerCase()} boleh punya beberapa admin.`}
+      />
       {isPending && <p className="text-muted">Memuat…</p>}
       <ErrorText>{error && errorMessage(error)}</ErrorText>
       {!isPending && childUnits.length === 0 && (
@@ -54,7 +52,7 @@ export function AdminsPage() {
         const list = admins.filter((a) => a.unit_id === u.id)
         return (
           <Card key={u.id} className="flex flex-col gap-2 p-0">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 pt-3 pb-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 pt-3 pb-2">
               <span className="font-bold">
                 {noun} {u.name}
               </span>
@@ -62,7 +60,7 @@ export function AdminsPage() {
                 + Admin
               </Button>
             </div>
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-slate-100">
               {list.length === 0 && <li className="px-4 pb-3 text-muted">Belum ada admin.</li>}
               {list.map((a) => (
                 <li key={a.user_id} className="flex flex-wrap items-center gap-2 px-4 py-2">
@@ -120,7 +118,7 @@ export function AdminsPage() {
         <BottomSheet title={credential.title} onClose={() => setCredential(null)}>
           <div className="flex flex-col gap-4">
             <p>Sampaikan kepada admin yang bersangkutan. Password ini tidak ditampilkan lagi.</p>
-            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-xl bg-gray-50 p-4 text-lg">
+            <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 rounded-xl bg-slate-50 p-4 text-lg">
               <dt className="text-muted">Nama pengguna</dt>
               <dd className="font-mono font-bold break-all">{credential.username}</dd>
               <dt className="text-muted">Password</dt>

@@ -1,3 +1,4 @@
+import { CircleAlert, CircleCheck } from 'lucide-react'
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 
 interface ToastOptions {
@@ -30,21 +31,25 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         aria-live="polite"
-        className="pointer-events-none fixed inset-x-0 bottom-0 z-50 flex justify-center p-4 pb-[max(1rem,env(safe-area-inset-bottom))]"
+        className="pointer-events-none fixed inset-x-0 bottom-0 z-[60] flex justify-center p-4"
+        style={{ paddingBottom: 'calc(max(1rem, env(safe-area-inset-bottom)) + var(--toast-offset, 0px))' }}
       >
         {toast && (
           <div
             key={toast.key}
             role="status"
-            className={`animate-fade-in pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl px-4 py-3 text-white shadow-lg ${
-              toast.tone === 'error' ? 'bg-red-700' : 'bg-gray-900'
-            }`}
+            className="animate-sheet-up pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl bg-slate-900 py-3 pr-2 pl-4 text-white shadow-float"
           >
+            {toast.tone === 'error' ? (
+              <CircleAlert className="size-6 shrink-0 text-red-400" aria-hidden />
+            ) : (
+              <CircleCheck className="size-6 shrink-0 text-emerald-400" aria-hidden />
+            )}
             <span className="flex-1 text-base">{toast.message}</span>
             {toast.action && (
               <button
                 type="button"
-                className="min-h-11 rounded-xl px-3 font-semibold text-brand-100 underline-offset-2 hover:underline"
+                className="min-h-11 shrink-0 rounded-xl bg-white/10 px-4 font-semibold text-white transition hover:bg-white/20"
                 onClick={() => {
                   toast.action!.onClick()
                   setToast(null)

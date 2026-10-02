@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
+import { ChevronLeft } from 'lucide-react'
 import { useState, type FormEvent } from 'react'
 import { Link, Navigate, useLocation, useNavigate } from 'react-router'
 import { Button, ErrorText, Field, inputClass } from '../../components/ui'
@@ -6,6 +7,7 @@ import { clearAdminCache } from '../../lib/authCache'
 import { supabase } from '../../lib/supabase'
 import { loginIdToEmail } from '../../../supabase/functions/admin-accounts/logic'
 import { useAuthSession } from './auth'
+import { AuthShell, PasswordInput } from './AuthShell'
 
 const LOGIN_ERRORS: Record<string, string> = {
   invalid_credentials: 'Nama pengguna atau password salah',
@@ -50,10 +52,16 @@ export function LoginPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-4 py-10">
-      <h1 className="text-2xl font-bold text-brand-700">Masuk Admin</h1>
-      <p className="mb-6 text-muted">Khusus pengelola absensi.</p>
-      <form onSubmit={onSubmit} className="flex flex-col gap-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5">
+    <AuthShell
+      title="Masuk Admin"
+      description="Khusus pengurus absensi"
+      footer={
+        <Link to="/" className="inline-flex min-h-11 items-center gap-1 font-semibold text-white/90 hover:text-white">
+          <ChevronLeft className="size-5" aria-hidden /> Kembali ke beranda
+        </Link>
+      }
+    >
+      <form onSubmit={onSubmit} className="flex flex-col gap-4">
         <Field label="Nama pengguna">
           <input
             className={inputClass}
@@ -62,15 +70,14 @@ export function LoginPage() {
             autoCapitalize="none"
             autoCorrect="off"
             spellCheck={false}
+            placeholder="mis. admin.citra"
             required
             value={loginId}
             onChange={(e) => setLoginId(e.target.value)}
           />
         </Field>
         <Field label="Password">
-          <input
-            className={inputClass}
-            type="password"
+          <PasswordInput
             autoComplete="current-password"
             required
             value={password}
@@ -78,13 +85,10 @@ export function LoginPage() {
           />
         </Field>
         <ErrorText>{error}</ErrorText>
-        <Button type="submit" disabled={busy}>
+        <Button type="submit" disabled={busy} className="mt-1 w-full">
           {busy ? 'Memproses…' : 'Masuk'}
         </Button>
       </form>
-      <Link to="/" className="mt-6 text-center text-brand-700">
-        ‹ Kembali ke beranda
-      </Link>
-    </main>
+    </AuthShell>
   )
 }

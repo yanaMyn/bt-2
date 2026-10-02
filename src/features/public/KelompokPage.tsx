@@ -1,8 +1,10 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
+import { CalendarClock, CalendarX, ChevronRight, Lock, RefreshCw, Users } from 'lucide-react'
 import { Link, useParams, useSearchParams } from 'react-router'
-import { PublicHeader } from '../../components/PublicHeader'
-import { ProgressBar } from '../../components/StatCard'
+import { heroBackClass, PublicHeader } from '../../components/PublicHeader'
+import { ProgressRing } from '../../components/StatCard'
+import { Badge, Button, buttonClass, EmptyState, LiveDot } from '../../components/ui'
 import { useNow } from '../../hooks/useNow'
 import { useRealtime } from '../../hooks/useRealtime'
 import { saveKelompok } from '../../lib/kelompokStore'
@@ -63,110 +65,147 @@ export function KelompokPage() {
 
   if (structure.data && !kelompok)
     return (
-      <div className="mx-auto max-w-xl p-4 text-center">
-        <p className="mt-16 text-xl font-bold">Kelompok tidak ditemukan</p>
-        <Link
-          to="/?ganti"
-          className="mt-4 inline-flex min-h-12 items-center rounded-xl bg-brand-700 px-5 font-semibold text-white"
+      <main className="mx-auto max-w-xl px-4 pt-20">
+        <EmptyState
+          icon={Users}
+          title="Kelompok tidak ditemukan"
+          action={
+            <Link to="/?ganti" className={buttonClass('primary')}>
+              Pilih kelompok
+            </Link>
+          }
         >
-          Pilih kelompok
-        </Link>
-      </div>
+          Tautan ini mungkin sudah berubah.
+        </EmptyState>
+      </main>
     )
 
-  const list = sortCards((activities.data ?? []).filter((c) => !level || c.owner_level === level))
+  const all = activities.data ?? []
+  const list = sortCards(all.filter((c) => !level || c.owner_level === level))
+  const runningCount = all.filter((c) => c.session_id).length
 
   return (
-    <div className="min-h-dvh">
+    <div className="min-h-dvh pb-10">
       <PublicHeader
+        eyebrow={desa ? `Desa ${desa.name}` : undefined}
         title={kelompok ? `Kelompok ${kelompok.name}` : 'Absensi'}
-        subtitle={desa ? `Desa ${desa.name}` : undefined}
+        subtitle={
+          activities.data
+            ? runningCount > 0
+              ? `${runningCount} kegiatan sedang berlangsung`
+              : 'Tidak ada kegiatan yang sedang berlangsung'
+            : undefined
+        }
         left={
-          <Link
-            to="/?ganti"
-            className="-ml-2 mb-1 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-brand-100"
-          >
-            ‹ Ganti kelompok
+          <Link to="/?ganti" className={heroBackClass}>
+            <RefreshCw className="size-4" aria-hidden /> Ganti kelompok
           </Link>
         }
-      />
-      <main className="mx-auto max-w-xl px-4 py-4">
-        <div className="-mx-4 mb-3 flex gap-2 overflow-x-auto px-4 pb-1" role="group" aria-label="Tingkat kegiatan">
+      >
+        <div
+          className="scrollbar-none -mx-4 mt-5 flex gap-2 overflow-x-auto px-4"
+          role="group"
+          aria-label="Tingkat kegiatan"
+        >
           {LEVELS.map((l) => (
             <button
               key={l.value}
               type="button"
               aria-pressed={level === l.value}
               onClick={() => setParams(l.value ? { level: l.value } : {}, { replace: true })}
-              className={`min-h-11 shrink-0 rounded-full px-4 font-semibold ring-1 ${
-                level === l.value ? 'bg-brand-700 text-white ring-brand-700' : 'bg-white text-ink ring-gray-300'
+              className={`min-h-11 shrink-0 rounded-full px-4 text-sm font-bold transition active:scale-[0.97] ${
+                level === l.value
+                  ? 'bg-white text-brand-800 shadow-float'
+                  : 'bg-white/12 text-white ring-1 ring-white/25 hover:bg-white/20'
               }`}
             >
               {l.label}
             </button>
           ))}
         </div>
+      </PublicHeader>
+      <main className="relative mx-auto -mt-4 max-w-xl px-4">
 
-        {loading && <p className="py-10 text-center text-muted">Memuat…</p>}
+        {loading && (
+          <ul className="flex flex-col gap-3" aria-label="Memuat">
+            {[0, 1, 2].map((i) => (
+              <li key={i} className="h-32 animate-pulse rounded-3xl bg-white shadow-card" />
+            ))}
+          </ul>
+        )}
         {isError && (
-          <div className="rounded-2xl bg-white p-5 text-center shadow-sm">
-            <p>Gagal memuat data. Periksa koneksi internet.</p>
-            <button
-              type="button"
-              onClick={retry}
-              className="mt-3 min-h-12 rounded-xl bg-brand-700 px-5 font-semibold text-white"
-            >
-              Coba lagi
-            </button>
-          </div>
+          <EmptyState icon={CalendarX} title="Gagal memuat data" action={<Button onClick={retry}>Coba lagi</Button>}>
+            Periksa koneksi internet lalu coba lagi.
+          </EmptyState>
         )}
         {activities.data && list.length === 0 && (
-          <div className="rounded-2xl bg-white p-6 text-center shadow-sm">
-            <p className="text-lg font-semibold">Belum ada kegiatan</p>
-            <p className="mt-1 text-muted">
-              {level ? 'Tidak ada kegiatan di tingkat ini.' : 'Pengurus belum menambahkan kegiatan.'}
-            </p>
-          </div>
+          <EmptyState icon={CalendarX} title="Belum ada kegiatan">
+            {level ? 'Tidak ada kegiatan di tingkat ini.' : 'Pengurus belum menambahkan kegiatan.'}
+          </EmptyState>
         )}
         <ul className="flex flex-col gap-3">
-          {list.map((c) => {
-            const all = stat(c.present, c.total)
+          {list.map((c, i) => {
+            const running = Boolean(c.session_id)
+            const pct = stat(c.present, c.total)
             return (
-              <li key={c.category_id}>
+              <li key={c.category_id} className="animate-rise" style={{ animationDelay: `${i * 40}ms` }}>
                 <Link
                   to={`/k/${c.slug}`}
-                  className="block rounded-2xl bg-white p-4 shadow-sm ring-1 ring-black/5 transition active:scale-[0.99]"
+                  className={`group block rounded-3xl border bg-white p-4 shadow-card transition hover:shadow-float active:scale-[0.99] ${
+                    running ? 'border-brand-200 ring-1 ring-brand-100' : 'border-line/70'
+                  }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <h2 className="text-lg font-bold break-words">
-                        {c.name}{' '}
-                        {c.pin_enabled && (
-                          <span aria-label="Memakai PIN" title="Memakai PIN">
-                            🔒
-                          </span>
-                        )}
-                      </h2>
-                      {c.owner_level !== 'kelompok' && (
-                        <p className="text-sm font-medium text-brand-700">
-                          Kegiatan {c.owner_level === 'desa' ? 'Desa' : 'Daerah'} {c.owner_name}
-                        </p>
-                      )}
-                      <p className="text-muted">{summarySessionText(c)}</p>
-                    </div>
-                    {c.session_id && c.total > 0 && (
-                      <span className="shrink-0 text-3xl font-bold tabular-nums text-brand-700">{all.percent}%</span>
+                  <div className="mb-2 flex flex-wrap items-center gap-2">
+                    {running ? (
+                      <Badge tone="brand">
+                        <LiveDot /> Sedang berlangsung
+                      </Badge>
+                    ) : c.next_opens_at ? (
+                      <Badge tone="info">
+                        <CalendarClock className="size-3.5" aria-hidden /> Terjadwal
+                      </Badge>
+                    ) : (
+                      <Badge>Belum ada jadwal</Badge>
+                    )}
+                    {c.owner_level !== 'kelompok' && (
+                      <Badge tone="warning">
+                        {c.owner_level === 'desa' ? 'Desa' : 'Daerah'} {c.owner_name}
+                      </Badge>
+                    )}
+                    {c.pin_enabled && (
+                      <Badge>
+                        <Lock className="size-3" aria-hidden /> PIN
+                      </Badge>
                     )}
                   </div>
-                  {c.session_id && c.total > 0 && (
-                    <>
-                      <div className="mt-3">
-                        <ProgressBar percent={all.percent} />
+                  <div className="flex items-center gap-4">
+                    <div className="min-w-0 flex-1">
+                      <h2 className="text-xl font-extrabold tracking-tight break-words">{c.name}</h2>
+                      <p className="mt-0.5 text-muted">{summarySessionText(c)}</p>
+                      {running && c.total > 0 && (
+                        <p className="mt-2 text-sm font-semibold text-slate-700">
+                          {c.present} dari {c.total} sudah hadir
+                        </p>
+                      )}
+                    </div>
+                    {running && c.total > 0 ? (
+                      <div className="relative">
+                        <ProgressRing percent={pct.percent} size={68} stroke={7} />
+                        <span className="absolute inset-0 flex items-center justify-center text-base font-extrabold tabular-nums text-brand-700">
+                          {pct.percent}%
+                        </span>
                       </div>
-                      <p className="mt-2 text-muted">
-                        {c.present}/{c.total} hadir dari kelompok ini
-                      </p>
-                    </>
+                    ) : (
+                      <ChevronRight
+                        className="size-6 shrink-0 text-slate-400 transition group-hover:translate-x-0.5"
+                        aria-hidden
+                      />
+                    )}
+                  </div>
+                  {running && (
+                    <span className={buttonClass('primary', 'mt-4 w-full')}>
+                      Isi kehadiran <ChevronRight className="size-5" aria-hidden />
+                    </span>
                   )}
                 </Link>
               </li>

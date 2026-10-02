@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type ChangeEvent } from 'react'
-import { Link } from 'react-router'
-import { Button, Card, ErrorText } from '../../components/ui'
+import { Button, Card, ErrorText, PageHeader } from '../../components/ui'
 import { MARITAL_LABEL } from '../../lib/criteria'
 import { formatDateShort } from '../../lib/dateRange'
 import { errorMessage } from '../../lib/errors'
@@ -95,15 +94,15 @@ export function ImportPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <Link to="/admin/jamaah" className="inline-flex min-h-11 items-center text-brand-700">
-          ‹ Jamaah
-        </Link>
-        <h1 className="text-2xl font-bold">Import jamaah (.xlsx)</h1>
-        <p className="text-muted">
-          Semua baris masuk ke Kelompok <b>{profile.unit_name}</b> sebagai jamaah baru.
-        </p>
-      </div>
+      <PageHeader
+        back={{ to: '/admin/jamaah', label: 'Jamaah' }}
+        title="Import jamaah"
+        description={
+          <>
+            Semua baris dari file <b>.xlsx</b> masuk ke Kelompok <b>{profile.unit_name}</b> sebagai jamaah baru.
+          </>
+        }
+      />
 
       <Card className="flex flex-col gap-4">
         <div>

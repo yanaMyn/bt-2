@@ -1,9 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
-import { Button, Card, ErrorText, Field, inputClass } from '../../components/ui'
+import { Button, ErrorText, Field } from '../../components/ui'
 import { supabase } from '../../lib/supabase'
 import { MIN_PASSWORD } from '../../../supabase/functions/admin-accounts/logic'
+import { AuthShell, PasswordInput } from './AuthShell'
 import { useProfile } from './profile'
 
 export function ChangePasswordPage() {
@@ -38,46 +39,41 @@ export function ChangePasswordPage() {
   }
 
   return (
-    <main className="mx-auto flex min-h-dvh max-w-sm flex-col justify-center px-4 py-10">
-      <h1 className="text-2xl font-bold text-brand-700">Ganti password</h1>
-      <p className="mb-6 text-muted">
-        {profile.must_change_password
+    <AuthShell
+      title="Ganti password"
+      description={
+        profile.must_change_password
           ? 'Anda masuk dengan password sementara. Buat password baru sebelum melanjutkan.'
-          : 'Buat password baru untuk akun Anda.'}
-      </p>
-      <Card>
-        <form onSubmit={onSubmit} className="flex flex-col gap-4">
-          <Field label="Password baru" hint={`Minimal ${MIN_PASSWORD} karakter.`}>
-            <input
-              className={inputClass}
-              type="password"
-              autoComplete="new-password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </Field>
-          <Field label="Ulangi password baru">
-            <input
-              className={inputClass}
-              type="password"
-              autoComplete="new-password"
-              required
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-            />
-          </Field>
-          <ErrorText>{error}</ErrorText>
-          <Button type="submit" disabled={busy}>
-            {busy ? 'Menyimpan…' : 'Simpan password'}
+          : 'Buat password baru untuk akun Anda.'
+      }
+    >
+      <form onSubmit={onSubmit} className="flex flex-col gap-4">
+        <Field label="Password baru" hint={`Minimal ${MIN_PASSWORD} karakter.`}>
+          <PasswordInput
+            autoComplete="new-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </Field>
+        <Field label="Ulangi password baru">
+          <PasswordInput
+            autoComplete="new-password"
+            required
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+          />
+        </Field>
+        <ErrorText>{error}</ErrorText>
+        <Button type="submit" disabled={busy} className="w-full">
+          {busy ? 'Menyimpan…' : 'Simpan password'}
+        </Button>
+        {!profile.must_change_password && (
+          <Button variant="secondary" onClick={() => navigate(-1)} disabled={busy} className="w-full">
+            Batal
           </Button>
-          {!profile.must_change_password && (
-            <Button variant="secondary" onClick={() => navigate(-1)} disabled={busy}>
-              Batal
-            </Button>
-          )}
-        </form>
-      </Card>
-    </main>
+        )}
+      </form>
+    </AuthShell>
   )
 }

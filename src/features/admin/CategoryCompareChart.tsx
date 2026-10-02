@@ -28,9 +28,9 @@ export function CategoryCompareChart({ items, caption }: { items: CompareItem[];
               >
                 {/* Garis bantu 0 / 50 / 100 yang samar. */}
                 <div className="absolute inset-y-0 left-0 w-[calc(100%-3.5rem)]" aria-hidden>
-                  <span className="absolute inset-y-0 left-0 border-l border-gray-300" />
-                  <span className="absolute inset-y-0 left-1/2 border-l border-dashed border-gray-200" />
-                  <span className="absolute inset-y-0 right-0 border-l border-dashed border-gray-200" />
+                  <span className="absolute inset-y-0 left-0 border-l border-slate-300" />
+                  <span className="absolute inset-y-0 left-1/2 border-l border-dashed border-slate-200" />
+                  <span className="absolute inset-y-0 right-0 border-l border-dashed border-slate-200" />
                 </div>
                 {/* Area batang = lebar penuh dikurangi 3.5rem untuk label nilai di ujung batang. */}
                 <div

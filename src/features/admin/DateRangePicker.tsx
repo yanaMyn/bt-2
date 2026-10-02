@@ -31,7 +31,7 @@ export function DateRangePicker({
   return (
     <div className="flex flex-col gap-3">
       <div
-        className="grid grid-cols-2 gap-1 rounded-2xl bg-gray-200/70 p-1"
+        className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-200/60 p-1"
         role="tablist"
         aria-label="Jenis pilihan tanggal"
       >
@@ -50,7 +50,7 @@ export function DateRangePicker({
               setMode(id)
               if (id === 'tanggal') onChange({ from: value.from, to: value.from })
             }}
-            className={`min-h-11 rounded-xl px-2 font-medium ${mode === id ? 'bg-white shadow-sm' : 'text-muted'}`}
+            className={`min-h-11 rounded-xl px-2 font-medium ${mode === id ? 'bg-white text-ink shadow-card' : 'text-slate-600'}`}
           >
             {label}
           </button>
@@ -96,7 +96,7 @@ export function DateRangePicker({
             key={preset}
             type="button"
             onClick={() => apply(presetRange(preset, todayJakarta()))}
-            className="min-h-10 rounded-full bg-white px-3 text-sm font-medium ring-1 ring-gray-300 hover:bg-gray-50"
+            className="min-h-10 rounded-full bg-white px-3 text-sm font-medium ring-1 ring-line hover:bg-slate-50"
           >
             {label}
           </button>
@@ -105,7 +105,7 @@ export function DateRangePicker({
           type="button"
           disabled={!all}
           onClick={() => all && apply(all)}
-          className="min-h-10 rounded-full bg-white px-3 text-sm font-medium ring-1 ring-gray-300 hover:bg-gray-50 disabled:opacity-50"
+          className="min-h-10 rounded-full bg-white px-3 text-sm font-medium ring-1 ring-line hover:bg-slate-50 disabled:opacity-50"
         >
           Semua
         </button>

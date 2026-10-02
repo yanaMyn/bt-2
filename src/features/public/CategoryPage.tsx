@@ -1,10 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
+import { CalendarClock, CalendarX, ChevronLeft, Search, SearchX, UserRoundX } from 'lucide-react'
 import { Link, useParams } from 'react-router'
-import { PublicHeader } from '../../components/PublicHeader'
+import { heroBackClass, PublicHeader } from '../../components/PublicHeader'
 import { StatCard } from '../../components/StatCard'
 import { StatusPill } from '../../components/StatusPill'
 import { useToast } from '../../components/Toast'
+import { Avatar, Button, buttonClass, EmptyState, inputClass } from '../../components/ui'
 import { useNow } from '../../hooks/useNow'
 import { payloadValue, useRealtime } from '../../hooks/useRealtime'
 import { errorCode, errorMessage } from '../../lib/errors'
@@ -30,6 +32,7 @@ export function CategoryPage() {
 
   const saved = getKelompok()
   const [search, setSearch] = useState('')
+  const [onlyEmpty, setOnlyEmpty] = useState(false)
   // Default: kelompok yang tersimpan di perangkat; '' = semua kelompok.
   const [kelompokFilter, setKelompokFilter] = useState(saved?.id ?? '')
   const [sheetMember, setSheetMember] = useState<Participant | null>(null)
@@ -68,37 +71,53 @@ export function CategoryPage() {
     return computeStats(scoped, data.attendance, present)
   }, [data, scoped])
 
+  const emptyCount = useMemo(() => (data ? scoped.filter((m) => !data.attendance.has(m.id)).length : 0), [data, scoped])
   const filtered = useMemo(() => {
     const q = search.trim().toLocaleLowerCase('id')
-    return q ? scoped.filter((m) => m.name.toLocaleLowerCase('id').includes(q)) : scoped
-  }, [scoped, search])
+    return scoped.filter(
+      (m) => (!q || m.name.toLocaleLowerCase('id').includes(q)) && (!onlyEmpty || !data?.attendance.has(m.id)),
+    )
+  }, [scoped, search, onlyEmpty, data])
   const showKelompok = !kelompok && kelompokOptions.length > 1
 
-  if (isPending) return <p className="py-16 text-center text-muted">Memuat…</p>
+  if (isPending)
+    return (
+      <div className="min-h-dvh">
+        <div className="hero-bg h-44" />
+        <div className="mx-auto -mt-6 flex max-w-xl flex-col gap-3 px-4">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="h-20 animate-pulse rounded-3xl bg-white shadow-card" />
+          ))}
+        </div>
+      </div>
+    )
   if (isError)
     return (
-      <div className="mx-auto max-w-xl p-4 text-center">
-        <p className="mt-10">Gagal memuat data. Periksa koneksi internet.</p>
-        <button
-          type="button"
-          onClick={() => refetch()}
-          className="mt-3 min-h-12 rounded-xl bg-brand-700 px-5 font-semibold text-white"
+      <main className="mx-auto max-w-xl px-4 pt-20">
+        <EmptyState
+          icon={CalendarX}
+          title="Gagal memuat data"
+          action={<Button onClick={() => refetch()}>Coba lagi</Button>}
         >
-          Coba lagi
-        </button>
-      </div>
+          Periksa koneksi internet lalu coba lagi.
+        </EmptyState>
+      </main>
     )
   if (!data)
     return (
-      <div className="mx-auto max-w-xl p-4 text-center">
-        <p className="mt-16 text-xl font-bold">Kegiatan tidak ditemukan</p>
-        <Link
-          to="/"
-          className="mt-4 inline-flex min-h-12 items-center rounded-xl bg-brand-700 px-5 font-semibold text-white"
+      <main className="mx-auto max-w-xl px-4 pt-20">
+        <EmptyState
+          icon={CalendarX}
+          title="Kegiatan tidak ditemukan"
+          action={
+            <Link to="/" className={buttonClass('primary')}>
+              Kembali ke beranda
+            </Link>
+          }
         >
-          Kembali ke beranda
-        </Link>
-      </div>
+          Kegiatan mungkin sudah dinonaktifkan pengurus.
+        </EmptyState>
+      </main>
     )
 
   const { category } = data
@@ -166,17 +185,17 @@ export function CategoryPage() {
         }
         note={data.session?.note}
         left={
-          <Link
-            to={saved ? `/g/${saved.slug}` : '/'}
-            className="-ml-2 mb-1 inline-flex min-h-11 items-center gap-1 rounded-lg px-2 text-brand-100"
-          >
-            ‹ Semua kegiatan
+          <Link to={saved ? `/g/${saved.slug}` : '/'} className={heroBackClass}>
+            <ChevronLeft className="size-5" aria-hidden /> Semua kegiatan
           </Link>
         }
       />
-      <main className="mx-auto max-w-xl px-4">
+      <main className="relative mx-auto -mt-4 max-w-xl px-4">
         {!data.session ? (
-          <section className="mt-4 rounded-2xl bg-white p-6 text-center shadow-sm ring-1 ring-black/5">
+          <section className="animate-rise rounded-[2rem] border border-line/70 bg-white p-6 text-center shadow-card">
+            <span className="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl bg-sky-50 text-sky-600">
+              <CalendarClock className="size-7" aria-hidden />
+            </span>
             {data.next?.opens_at ? (
               <>
                 <p className="text-lg font-semibold">{opensText(data.next.label, data.next.opens_at)}</p>
@@ -206,7 +225,7 @@ export function CategoryPage() {
         ) : (
           <>
             {stats && (
-              <section className="-mt-3 grid grid-cols-2 gap-3" aria-label="Persentase kehadiran">
+              <section className="animate-rise grid grid-cols-2 gap-3" aria-label="Persentase kehadiran">
                 <div className="col-span-2">
                   <StatCard label="Kehadiran" stat={stats.all} large />
                 </div>
@@ -215,7 +234,7 @@ export function CategoryPage() {
               </section>
             )}
 
-            <div className="sticky top-0 z-10 -mx-4 mt-4 flex flex-col gap-2 bg-surface/95 px-4 py-3 backdrop-blur">
+            <div className="sticky top-0 z-10 -mx-4 mt-4 flex flex-col gap-2 bg-surface/90 px-4 pt-3 pb-3 backdrop-blur-md">
               {kelompokOptions.length > 1 && (
                 <>
                   <label className="sr-only" htmlFor="kelompok">
@@ -225,7 +244,7 @@ export function CategoryPage() {
                     id="kelompok"
                     value={kelompok}
                     onChange={(e) => setKelompokFilter(e.target.value)}
-                    className="min-h-13 w-full rounded-2xl border border-gray-300 bg-white px-4 text-lg outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-500/30"
+                    className={`${inputClass} min-h-13 text-lg font-semibold`}
                   >
                     <option value="">Semua kelompok</option>
                     {kelompokOptions.map(([id, name]) => (
@@ -236,37 +255,73 @@ export function CategoryPage() {
                   </select>
                 </>
               )}
-              <label className="sr-only" htmlFor="search">
-                Cari nama
-              </label>
-              <input
-                id="search"
-                type="search"
-                inputMode="search"
-                autoComplete="off"
-                placeholder="🔍  Cari nama…"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="min-h-13 w-full rounded-2xl border border-gray-300 bg-white px-4 text-lg outline-none focus:border-brand-600 focus:ring-2 focus:ring-brand-500/30"
-              />
+              <div className="relative">
+                <label className="sr-only" htmlFor="search">
+                  Cari nama
+                </label>
+                <Search
+                  className="pointer-events-none absolute top-1/2 left-4 size-5 -translate-y-1/2 text-slate-400"
+                  aria-hidden
+                />
+                <input
+                  id="search"
+                  type="search"
+                  inputMode="search"
+                  autoComplete="off"
+                  placeholder="Cari nama…"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className={`${inputClass} min-h-14 pl-12 text-lg`}
+                />
+              </div>
+              <div className="flex gap-2" role="group" aria-label="Tampilkan">
+                {[
+                  [false, `Semua (${scoped.length})`],
+                  [true, `Belum mengisi (${emptyCount})`],
+                ].map(([value, label]) => (
+                  <button
+                    key={String(value)}
+                    type="button"
+                    aria-pressed={onlyEmpty === value}
+                    onClick={() => setOnlyEmpty(value as boolean)}
+                    className={`min-h-11 rounded-full px-4 text-sm font-semibold transition ${
+                      onlyEmpty === value ? 'bg-ink text-white' : 'border border-line bg-white text-slate-700'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
 
             {scoped.length === 0 ? (
-              <p className="py-10 text-center text-muted">Belum ada peserta untuk kegiatan ini.</p>
+              <EmptyState icon={UserRoundX} title="Belum ada peserta">
+                Belum ada peserta untuk kegiatan ini.
+              </EmptyState>
             ) : filtered.length === 0 ? (
-              <p className="py-10 text-center text-muted">Nama tidak ditemukan</p>
+              <EmptyState
+                icon={SearchX}
+                title={onlyEmpty && !search.trim() ? 'Semua sudah mengisi 🎉' : 'Nama tidak ditemukan'}
+              >
+                {onlyEmpty && !search.trim()
+                  ? 'Tidak ada lagi yang belum mengisi.'
+                  : 'Coba ejaan lain atau periksa filter.'}
+              </EmptyState>
             ) : (
-              <ul className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-black/5">
+              <ul className="overflow-hidden rounded-3xl border border-line/70 bg-white shadow-card">
                 {filtered.map((m) => (
-                  <li key={m.id} className="border-b border-gray-100 last:border-b-0">
+                  <li key={m.id} className="border-b border-slate-100 last:border-b-0">
                     <button
                       type="button"
                       onClick={() => setSheetMember(m)}
-                      className="flex min-h-16 w-full items-center justify-between gap-3 px-4 py-2 text-left active:bg-gray-50"
+                      className="flex min-h-[4.5rem] w-full items-center gap-3 px-4 py-2 text-left transition hover:bg-slate-50 active:bg-brand-50"
                     >
-                      <span className="min-w-0 flex-1 text-lg break-words">
+                      <Avatar name={m.name} tone={m.gender} />
+                      <span className="min-w-0 flex-1 text-lg font-semibold break-words">
                         {m.name}
-                        {showKelompok && <span className="block text-sm text-muted">{m.kelompok_name}</span>}
+                        {showKelompok && (
+                          <span className="block text-sm font-normal text-muted">{m.kelompok_name}</span>
+                        )}
                       </span>
                       <StatusPill status={statusById.get(data.attendance.get(m.id) ?? '')} />
                     </button>

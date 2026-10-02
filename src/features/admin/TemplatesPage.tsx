@@ -1,8 +1,9 @@
+import { Plus } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { BottomSheet } from '../../components/BottomSheet'
 import { useToast } from '../../components/Toast'
-import { Button, Card, ConfirmDialog, ErrorText, Field, inputClass } from '../../components/ui'
+import { Button, Card, ConfirmDialog, ErrorText, Field, inputClass, PageHeader } from '../../components/ui'
 import { criteriaText } from '../../lib/criteria'
 import { errorMessage } from '../../lib/errors'
 import type { CriteriaMarital, Gender } from '../../lib/types'
@@ -39,19 +40,20 @@ export function TemplatesPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold">Templat kegiatan</h1>
-          <p className="text-muted">
-            Pilihan cepat saat admin membuat kegiatan. Mengubah templat tidak mengubah kegiatan yang sudah ada.
-          </p>
-        </div>
-        <Button onClick={() => setEditing('new')}>+ Templat</Button>
-      </div>
+      <PageHeader
+        eyebrow="Kelola"
+        title="Templat kegiatan"
+        description="Pilihan cepat saat admin membuat kegiatan. Mengubah templat tidak mengubah kegiatan yang sudah ada."
+        actions={
+          <Button onClick={() => setEditing('new')}>
+            <Plus className="size-5" aria-hidden /> Templat
+          </Button>
+        }
+      />
       {isPending && <p className="text-muted">Memuat…</p>}
       <ErrorText>{error && errorMessage(error)}</ErrorText>
       <Card className="p-0">
-        <ul className="divide-y divide-gray-100">
+        <ul className="divide-y divide-slate-100">
           {data.map((t) => (
             <li key={t.id} className="flex flex-wrap items-center gap-2 px-4 py-2">
               <span className="min-w-0 flex-1">

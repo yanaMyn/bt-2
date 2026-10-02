@@ -1,9 +1,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type ReactNode } from 'react'
-import { Link } from 'react-router'
 import { BottomSheet } from '../../components/BottomSheet'
 import { useToast } from '../../components/Toast'
-import { Button, Card, ErrorText, Field, inputClass } from '../../components/ui'
+import { Button, Card, ErrorText, Field, inputClass, PageHeader } from '../../components/ui'
 import { ageOn, MARITAL_LABEL, unitLabel } from '../../lib/criteria'
 import { formatDateShort } from '../../lib/dateRange'
 import { errorMessage } from '../../lib/errors'
@@ -102,12 +101,11 @@ export function TransfersPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <Link to="/admin/jamaah" className="inline-flex min-h-11 items-center text-brand-700">
-          ‹ Jamaah
-        </Link>
-        <h1 className="text-2xl font-bold">Perpindahan jamaah</h1>
-      </div>
+      <PageHeader
+        back={{ to: '/admin/jamaah', label: 'Jamaah' }}
+        title="Perpindahan jamaah"
+        description="Terima atau tolak jamaah yang masuk, dan pantau jamaah yang Anda lepas."
+      />
       {isPending && <p className="text-muted">Memuat…</p>}
       <ErrorText>{error && errorMessage(error)}</ErrorText>
 
@@ -188,7 +186,7 @@ export function TransfersPage() {
       <Card>
         <p className="mb-2 font-bold">Riwayat</p>
         {history.length === 0 && <p className="text-muted">Belum ada.</p>}
-        <ul className="divide-y divide-gray-100 text-sm">
+        <ul className="divide-y divide-slate-100 text-sm">
           {history.map((t) => (
             <li key={t.id} className="py-2">
               <b>{t.member_name}</b>: {unitLabel(units, t.from_kelompok)} → {unitLabel(units, t.to_kelompok)} ·{' '}

@@ -5,6 +5,7 @@ import { Navigate, Outlet, useLocation, useNavigate } from 'react-router'
 import { Button } from '../../components/ui'
 import { clearAdminCache } from '../../lib/authCache'
 import { supabase } from '../../lib/supabase'
+import { AuthShell } from './AuthShell'
 import { ProfileProvider, useMyProfileQuery } from './profile'
 
 /** undefined = masih memeriksa, null = belum login. */
@@ -31,16 +32,22 @@ export function RequireAdmin() {
   const profile = useMyProfileQuery(Boolean(session))
 
   if (session === undefined || (session && profile.isPending)) {
-    return <p className="py-16 text-center text-muted">Memeriksa sesi…</p>
+    return (
+      <div className="flex min-h-dvh items-center justify-center">
+        <span className="flex items-center gap-3 font-semibold text-muted">
+          <span className="size-5 animate-spin rounded-full border-2 border-brand-200 border-t-brand-600" aria-hidden />
+          Memeriksa sesi…
+        </span>
+      </div>
+    )
   }
   if (!session) return <Navigate to="/admin/login" replace state={{ from: location.pathname }} />
   if (profile.isError || !profile.data) {
     return (
-      <main className="mx-auto max-w-sm px-4 py-16 text-center">
-        <p className="text-lg font-bold">Akun ini tidak memiliki akses admin</p>
-        <p className="mt-1 text-muted">Akun mungkin dinonaktifkan. Hubungi admin di atas Anda.</p>
+      <AuthShell title="Tidak ada akses" description="Akun ini tidak memiliki akses admin">
+        <p className="mb-4 text-center text-muted">Akun mungkin dinonaktifkan. Hubungi admin di atas Anda.</p>
         <Button
-          className="mt-4"
+          className="w-full"
           onClick={async () => {
             await supabase.auth.signOut()
             navigate('/admin/login', { replace: true })
@@ -49,7 +56,7 @@ export function RequireAdmin() {
         >
           Keluar
         </Button>
-      </main>
+      </AuthShell>
     )
   }
   if (profile.data.must_change_password && location.pathname !== CHANGE_PASSWORD_PATH) {

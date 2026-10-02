@@ -81,7 +81,7 @@ export function CategoryStatusesTab({ category }: { category: Category }) {
             + Status
           </Button>
         </div>
-        <ul className="divide-y divide-gray-100">
+        <ul className="divide-y divide-slate-100">
           {active.map((s, i) => (
             <li key={s.id} className="flex flex-wrap items-center gap-2 py-3">
               <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -245,7 +245,7 @@ function StatusForm({
                 aria-label={`Warna ${c}`}
                 aria-pressed={c === color}
                 onClick={() => setColor(c)}
-                className={`h-11 w-11 rounded-full ${c === color ? 'ring-4 ring-gray-900 ring-offset-2' : ''}`}
+                className={`h-11 w-11 rounded-full ${c === color ? 'ring-4 ring-slate-900 ring-offset-2' : ''}`}
                 style={{ backgroundColor: c }}
               />
             ))}

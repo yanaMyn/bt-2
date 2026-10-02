@@ -29,7 +29,7 @@ export const formatDate = (iso: string) =>
 const STATE_BADGE: Record<SessionState, { label: string; className: string }> = {
   dijadwalkan: { label: 'dijadwalkan', className: 'bg-blue-50 text-blue-800' },
   berjalan: { label: 'berjalan', className: 'bg-brand-50 text-brand-800' },
-  selesai: { label: 'selesai', className: 'bg-gray-100 text-gray-700' },
+  selesai: { label: 'selesai', className: 'bg-slate-100 text-slate-700' },
 }
 
 const DEFAULT_TIMES: TimeFields = { start: '19:30', end: '21:00', grace: 0, note: '' }
@@ -119,7 +119,7 @@ export function CategorySessionsTab({ category }: { category: Category }) {
         {isPending && <p className="text-muted">Memuat…</p>}
         <ErrorText>{error && errorMessage(error)}</ErrorText>
         {data && sessions.length === 0 && <p className="text-muted">Belum ada sesi. Jadwalkan sesi pertama.</p>}
-        <ul className="divide-y divide-gray-100">
+        <ul className="divide-y divide-slate-100">
           {data &&
             sessions.map(({ s, state }) => {
               const recap = state === 'dijadwalkan' ? null : sessionRecap(data, s.id)
@@ -322,7 +322,7 @@ function ScheduleSheet({
         }}
         className="flex flex-col gap-4"
       >
-        <div className="grid grid-cols-2 gap-1 rounded-2xl bg-gray-200/70 p-1" role="tablist">
+        <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-200/60 p-1" role="tablist">
           {(
             [
               ['satu', 'Satu sesi'],
@@ -335,7 +335,7 @@ function ScheduleSheet({
               role="tab"
               aria-selected={mode === id}
               onClick={() => setMode(id)}
-              className={`min-h-11 rounded-xl px-2 font-medium ${mode === id ? 'bg-white shadow-sm' : 'text-muted'}`}
+              className={`min-h-11 rounded-xl px-2 font-medium ${mode === id ? 'bg-white text-ink shadow-card' : 'text-slate-600'}`}
             >
               {label}
             </button>
@@ -360,7 +360,7 @@ function ScheduleSheet({
                       aria-pressed={on}
                       onClick={() => setWeekdays((w) => (on ? w.filter((x) => x !== i) : [...w, i].sort()))}
                       className={`min-h-11 rounded-full px-3 font-medium ring-1 ${
-                        on ? 'bg-brand-700 text-white ring-brand-700' : 'bg-white ring-gray-300'
+                        on ? 'bg-brand-600 text-white ring-brand-600 shadow-brand' : 'bg-white ring-line'
                       }`}
                     >
                       {name}
@@ -398,7 +398,7 @@ function ScheduleSheet({
               Pratinjau: {selected.length} sesi {weekdays.length === 0 && '(pilih hari dulu)'}
             </p>
             {planned.length > 0 && (
-              <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto rounded-xl p-1 ring-1 ring-gray-200">
+              <ul className="flex max-h-64 flex-col gap-1 overflow-y-auto rounded-xl p-1 ring-1 ring-slate-200">
                 {planned.map((d) => (
                   <li key={d.date}>
                     <label

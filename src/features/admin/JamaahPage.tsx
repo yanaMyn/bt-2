@@ -1,9 +1,10 @@
+import { ArrowLeftRight, Plus, Upload } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router'
 import { BottomSheet } from '../../components/BottomSheet'
 import { useToast } from '../../components/Toast'
-import { Button, Card, ConfirmDialog, ErrorText, Field, inputClass } from '../../components/ui'
+import { Button, buttonClass, Card, ConfirmDialog, ErrorText, Field, inputClass, PageHeader } from '../../components/ui'
 import { ageOn, childrenOf, MARITAL_LABEL, unitLabel } from '../../lib/criteria'
 import { formatDateShort } from '../../lib/dateRange'
 import { errorMessage } from '../../lib/errors'
@@ -121,36 +122,32 @@ export function JamaahPage() {
 
   return (
     <div className={`flex flex-col gap-4 ${selection.selected.size ? 'pb-24' : ''}`}>
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold">Jamaah</h1>
-          <p className="text-muted">
-            {canEdit
-              ? `Jamaah Kelompok ${profile.unit_name}. Peserta kegiatan dihitung otomatis dari data ini.`
-              : 'Hanya dapat dilihat. Data jamaah dikelola admin Kelompok masing-masing.'}
-          </p>
-        </div>
-        {canEdit && (
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setEditing('new')}>+ Jamaah</Button>
-            <Link
-              to="/admin/jamaah/import"
-              className="inline-flex min-h-11 items-center rounded-xl bg-white px-4 font-semibold ring-1 ring-gray-300"
-            >
-              Import .xlsx
-            </Link>
-            <Link
-              to="/admin/perpindahan"
-              className="inline-flex min-h-11 items-center rounded-xl bg-white px-4 font-semibold ring-1 ring-gray-300"
-            >
-              Perpindahan
-              {incomingCount > 0 && (
-                <span className="ml-1 rounded-full bg-red-600 px-2 text-sm text-white">{incomingCount}</span>
-              )}
-            </Link>
-          </div>
-        )}
-      </div>
+      <PageHeader
+        title="Jamaah"
+        description={
+          canEdit
+            ? `Jamaah Kelompok ${profile.unit_name}. Peserta kegiatan dihitung otomatis dari data ini.`
+            : 'Hanya dapat dilihat. Data jamaah dikelola admin Kelompok masing-masing.'
+        }
+        actions={
+          canEdit && (
+            <>
+              <Button onClick={() => setEditing('new')}>
+                <Plus className="size-5" aria-hidden /> Jamaah
+              </Button>
+              <Link to="/admin/jamaah/import" className={buttonClass('secondary')}>
+                <Upload className="size-5" aria-hidden /> Import
+              </Link>
+              <Link to="/admin/perpindahan" className={buttonClass('secondary')}>
+                <ArrowLeftRight className="size-5" aria-hidden /> Perpindahan
+                {incomingCount > 0 && (
+                  <span className="rounded-full bg-red-600 px-2 text-sm text-white">{incomingCount}</span>
+                )}
+              </Link>
+            </>
+          )
+        }
+      />
 
       <Card className="flex flex-col gap-2">
         <input
@@ -227,7 +224,7 @@ export function JamaahPage() {
                 onToggle={() => selection.toggleAll(filtered.map((m) => m.id))}
               />
             )}
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-slate-100">
               {pager.items.map((m) => {
                 const t = pending.get(m.id)
                 return (
@@ -249,7 +246,7 @@ export function JamaahPage() {
                         {!canEdit && ` · ${unitLabel(units, m.kelompok_id)}`}
                       </p>
                       {m.inactive_since && (
-                        <p className="text-sm font-medium text-gray-700">
+                        <p className="text-sm font-medium text-slate-700">
                           Nonaktif sejak {formatDateShort(m.inactive_since)} ({REASON_LABEL[m.inactive_reason ?? '']})
                         </p>
                       )}

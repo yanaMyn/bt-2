@@ -97,7 +97,7 @@ export function ActivityForm({
         <input className={inputClass} value={name} onChange={(e) => setName(e.target.value)} required />
       </Field>
 
-      <fieldset className="flex flex-col gap-3 rounded-xl bg-gray-50 p-3">
+      <fieldset className="flex flex-col gap-3 rounded-xl bg-slate-50 p-3">
         <legend className="px-1 font-medium">Kriteria peserta</legend>
         <Field label="Jenis kelamin">
           <select className={inputClass} value={gender} onChange={(e) => setGender(e.target.value as Gender | '')}>
@@ -143,7 +143,7 @@ export function ActivityForm({
       </fieldset>
 
       {ownerLevel !== 'kelompok' && (
-        <fieldset className="flex flex-col gap-2 rounded-xl bg-gray-50 p-3">
+        <fieldset className="flex flex-col gap-2 rounded-xl bg-slate-50 p-3">
           <legend className="px-1 font-medium">Wilayah peserta</legend>
           <label className="flex min-h-11 items-center gap-3">
             <input

@@ -16,7 +16,7 @@ export function GenderPicker({ value, onChange }: { value: Gender | null; onChan
           aria-checked={value === g}
           onClick={() => onChange(g)}
           className={`min-h-11 rounded-xl font-medium ring-1 ${
-            value === g ? 'bg-brand-700 text-white ring-brand-700' : 'bg-white ring-gray-300'
+            value === g ? 'bg-brand-600 text-white ring-brand-600 shadow-brand' : 'bg-white ring-line'
           }`}
         >
           {label}

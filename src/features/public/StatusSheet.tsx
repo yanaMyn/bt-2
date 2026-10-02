@@ -1,3 +1,4 @@
+import { Check } from 'lucide-react'
 import { BottomSheet } from '../../components/BottomSheet'
 import { readableText } from '../../lib/color'
 import type { Member, Status } from '../../lib/types'
@@ -27,13 +28,17 @@ export function StatusSheet({
               type="button"
               onClick={() => onPick(s.id)}
               aria-pressed={selected}
-              className={`flex min-h-16 items-center justify-between gap-3 rounded-2xl px-5 text-left text-xl font-bold shadow-sm transition active:scale-[0.98] ${
-                selected ? 'ring-4 ring-gray-900/80 ring-offset-2' : ''
+              className={`flex min-h-[4.5rem] items-center justify-between gap-3 rounded-3xl px-6 text-left text-xl font-bold shadow-card transition hover:brightness-105 active:scale-[0.98] ${
+                selected ? 'ring-4 ring-slate-900/80 ring-offset-2' : ''
               }`}
               style={{ backgroundColor: s.color, color: readableText(s.color) }}
             >
               <span className="break-words">{s.label}</span>
-              {selected && <span className="text-base font-semibold">✓ Saat ini</span>}
+              {selected && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-black/15 px-3 py-1 text-sm font-semibold">
+                  <Check className="size-4" aria-hidden /> Saat ini
+                </span>
+              )}
             </button>
           )
         })}

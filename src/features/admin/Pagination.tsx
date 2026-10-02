@@ -47,7 +47,7 @@ export function Pagination({
 }) {
   if (total === 0) return null
   const navClass =
-    'inline-flex min-h-11 min-w-11 items-center justify-center rounded-xl bg-white px-3 font-medium ring-1 ring-gray-300 disabled:opacity-40'
+    'inline-flex min-h-11 min-w-11 items-center justify-center rounded-2xl border border-line bg-white px-3 text-lg font-bold shadow-xs transition hover:bg-slate-50 disabled:opacity-40'
   return (
     <nav className="flex flex-wrap items-center justify-between gap-2" aria-label="Halaman daftar">
       <div className="flex items-center gap-2">
@@ -76,7 +76,7 @@ export function Pagination({
       <label className="flex items-center gap-2 text-sm text-muted">
         Per halaman
         <select
-          className="min-h-11 rounded-xl border border-gray-300 bg-white px-2 text-base text-ink"
+          className="min-h-11 rounded-2xl border border-line bg-white px-3 text-base text-ink shadow-xs"
           value={size}
           onChange={(e) => onSize(Number(e.target.value) as PageSize)}
         >

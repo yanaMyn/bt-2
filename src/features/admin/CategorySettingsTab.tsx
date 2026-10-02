@@ -167,7 +167,7 @@ export function CategorySettingsTab({ category }: { category: Category }) {
             />
           </div>
           {category.pin_enabled && (
-            <div className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2">
+            <div className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2">
               <span>
                 <span className="block text-sm text-muted">PIN saat ini</span>
                 {!showPin ? (
@@ -191,7 +191,7 @@ export function CategorySettingsTab({ category }: { category: Category }) {
                 onClick={() => setShowPin((v) => !v)}
                 aria-label={showPin ? 'Sembunyikan PIN' : 'Lihat PIN'}
                 aria-pressed={showPin}
-                className="flex h-11 w-11 items-center justify-center rounded-full text-muted hover:bg-gray-200"
+                className="flex h-11 w-11 items-center justify-center rounded-full text-muted hover:bg-slate-200"
               >
                 {showPin ? <EyeOffIcon /> : <EyeIcon />}
               </button>
@@ -288,7 +288,7 @@ function Switch({
       aria-label={label}
       disabled={disabled}
       onClick={onChange}
-      className={`relative h-8 w-14 shrink-0 rounded-full transition disabled:opacity-50 ${checked ? 'bg-brand-600' : 'bg-gray-300'}`}
+      className={`relative h-8 w-14 shrink-0 rounded-full transition disabled:opacity-50 ${checked ? 'bg-brand-600' : 'bg-slate-300'}`}
     >
       <span
         className={`absolute top-1 h-6 w-6 rounded-full bg-white shadow transition-all ${checked ? 'left-7' : 'left-1'}`}

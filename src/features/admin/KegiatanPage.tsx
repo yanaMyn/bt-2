@@ -1,8 +1,9 @@
+import { CalendarDays, ChevronRight, Lock, Plus } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { BottomSheet } from '../../components/BottomSheet'
-import { Button, Card, ErrorText } from '../../components/ui'
+import { Badge, Button, Card, ErrorText, LiveDot, PageHeader } from '../../components/ui'
 import { criteriaText } from '../../lib/criteria'
 import { errorMessage } from '../../lib/errors'
 import { stat } from '../../lib/stats'
@@ -36,18 +37,15 @@ export function KegiatanPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold">Kegiatan</h1>
-          <p className="text-muted">
-            Kegiatan milik {LEVEL_LABEL[profile.unit_level]} {profile.unit_name}. Peserta dihitung otomatis dari
-            kriteria.
-          </p>
-        </div>
-        <Button onClick={() => setCreating(true)} disabled={!units}>
-          + Kegiatan
-        </Button>
-      </div>
+      <PageHeader
+        title="Kegiatan"
+        description={`Kegiatan milik ${LEVEL_LABEL[profile.unit_level]} ${profile.unit_name}. Peserta dihitung otomatis dari kriteria.`}
+        actions={
+          <Button onClick={() => setCreating(true)} disabled={!units}>
+            <Plus className="size-5" aria-hidden /> Kegiatan
+          </Button>
+        }
+      />
 
       {isPending && <p className="text-muted">Memuat…</p>}
       <ErrorText>{error && errorMessage(error)}</ErrorText>
@@ -58,32 +56,52 @@ export function KegiatanPage() {
           </p>
         </Card>
       )}
-      <ul className="flex flex-col gap-2">
+      <ul className="grid gap-3">
         {own.map((c) => (
           <li key={c.category_id}>
             <Link
               to={`/admin/kegiatan/${c.category_id}`}
-              className={`flex items-center justify-between gap-3 rounded-2xl p-4 shadow-sm ring-1 ring-black/5 hover:ring-brand-500 ${
-                c.is_active ? 'bg-white' : 'bg-gray-100'
+              className={`group flex items-center gap-4 rounded-3xl border p-4 shadow-card transition hover:shadow-float ${
+                c.is_active ? 'border-line/70 bg-white' : 'border-dashed border-slate-300 bg-slate-50'
               }`}
             >
-              <div className="min-w-0">
-                <p className="font-bold break-words">
-                  {c.name} {c.pin_enabled && <span title="PIN aktif">🔒</span>} {!c.is_active && <InactiveBadge />}
-                </p>
+              <span
+                className={`flex size-12 shrink-0 items-center justify-center rounded-2xl ${
+                  c.session_id ? 'bg-brand-600 text-white shadow-brand' : 'bg-brand-50 text-brand-600'
+                }`}
+              >
+                <CalendarDays className="size-6" aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <p className="text-lg font-bold break-words">{c.name}</p>
+                  {c.session_id && (
+                    <Badge tone="brand">
+                      <LiveDot /> Berlangsung
+                    </Badge>
+                  )}
+                  {c.pin_enabled && (
+                    <Badge>
+                      <Lock className="size-3" aria-hidden /> PIN
+                    </Badge>
+                  )}
+                  {!c.is_active && <InactiveBadge />}
+                </div>
                 <p className="text-sm text-muted">{criteriaText(c)}</p>
                 <p className="text-sm text-muted">{summarySessionText(c)}</p>
               </div>
-              <span className="shrink-0 text-right">
-                <span className="block text-xl font-bold tabular-nums text-brand-700">
-                  {c.session_id ? `${stat(c.present, c.total).percent}%` : '–'}
-                </span>
-                {c.session_id && (
+              {c.session_id ? (
+                <span className="shrink-0 text-right">
+                  <span className="block text-2xl font-extrabold tabular-nums text-brand-700">
+                    {stat(c.present, c.total).percent}%
+                  </span>
                   <span className="text-sm text-muted tabular-nums">
                     {c.present}/{c.total}
                   </span>
-                )}
-              </span>
+                </span>
+              ) : (
+                <ChevronRight className="size-5 shrink-0 text-slate-400" aria-hidden />
+              )}
             </Link>
           </li>
         ))}

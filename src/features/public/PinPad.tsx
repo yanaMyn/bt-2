@@ -1,3 +1,4 @@
+import { Delete, Lock } from 'lucide-react'
 import { useState } from 'react'
 import { errorMessage } from '../../lib/errors'
 import { verifyPin } from './api'
@@ -45,19 +46,27 @@ export function PinPad({ categoryId, onSuccess }: { categoryId: string; onSucces
   }
 
   return (
-    <section className="mt-4 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-black/5" aria-label="Masukkan PIN">
-      <h2 className="text-center text-xl font-bold">🔒 Masukkan PIN</h2>
-      <p className="mb-4 text-center text-muted">Minta PIN 4 angka ke pengurus. Cukup sekali di HP ini.</p>
+    <section
+      className="animate-rise mt-4 rounded-[2rem] border border-line/70 bg-white p-6 shadow-card"
+      aria-label="Masukkan PIN"
+    >
+      <span className="mx-auto mb-3 flex size-14 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
+        <Lock className="size-7" aria-hidden />
+      </span>
+      <h2 className="text-center text-xl font-extrabold tracking-tight">Masukkan PIN</h2>
+      <p className="mb-5 text-center text-muted">Minta PIN 4 angka ke pengurus. Cukup sekali di HP ini.</p>
       <div className="mb-2 flex justify-center gap-4" aria-label={`${pin.length} dari ${PIN_LENGTH} digit dimasukkan`}>
         {Array.from({ length: PIN_LENGTH }, (_, i) => (
           <span
             key={i}
-            className={`h-5 w-5 rounded-full ${i < pin.length ? 'bg-brand-700' : 'border-2 border-gray-300'}`}
+            className={`size-5 rounded-full transition ${
+              i < pin.length ? 'scale-110 bg-brand-600' : 'border-2 border-slate-300'
+            } ${error ? 'border-red-400' : ''}`}
           />
         ))}
       </div>
-      <p className="mb-3 min-h-6 text-center font-medium text-red-700" role="alert">
-        {checking ? <span className="text-muted">Memeriksa…</span> : error}
+      <p className="mb-4 min-h-6 text-center font-semibold text-red-600" role="alert">
+        {checking ? <span className="font-medium text-muted">Memeriksa…</span> : error}
       </p>
       <div className="mx-auto grid max-w-xs grid-cols-3 gap-3">
         {KEYS.map((k, i) =>
@@ -70,11 +79,13 @@ export function PinPad({ categoryId, onSuccess }: { categoryId: string; onSucces
               disabled={checking}
               onClick={() => press(k)}
               aria-label={k === 'hapus' ? 'Hapus satu digit' : undefined}
-              className={`h-16 rounded-2xl font-semibold transition active:scale-95 disabled:opacity-40 ${
-                k === 'hapus' ? 'bg-gray-100 text-lg text-muted' : 'bg-gray-100 text-2xl text-ink'
+              className={`flex h-16 items-center justify-center rounded-2xl font-bold transition active:scale-95 active:bg-brand-100 disabled:opacity-40 ${
+                k === 'hapus'
+                  ? 'bg-transparent text-slate-500 hover:bg-slate-100'
+                  : 'bg-slate-100 text-2xl text-ink hover:bg-slate-200'
               }`}
             >
-              {k === 'hapus' ? '⌫ Hapus' : k}
+              {k === 'hapus' ? <Delete className="size-7" aria-hidden /> : k}
             </button>
           ),
         )}

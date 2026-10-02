@@ -1,6 +1,7 @@
+import { CalendarX, ExternalLink, Lock } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams, useSearchParams } from 'react-router'
-import { ErrorText } from '../../components/ui'
+import { Badge, buttonClass, EmptyState, ErrorText, PageHeader, Segmented } from '../../components/ui'
 import { errorMessage } from '../../lib/errors'
 import { getCategory } from './api'
 import { InactiveBadge } from './InactiveBadge'
@@ -33,48 +34,54 @@ export function KegiatanDetailPage() {
   if (error) return <ErrorText>{errorMessage(error)}</ErrorText>
   if (!category)
     return (
-      <div>
-        <p className="font-bold">Kegiatan tidak ditemukan.</p>
-        <Link to="/admin/kegiatan" className="text-brand-700">
-          ‹ Kembali
-        </Link>
-      </div>
+      <EmptyState
+        icon={CalendarX}
+        title="Kegiatan tidak ditemukan"
+        action={
+          <Link to="/admin/kegiatan" className={buttonClass('primary')}>
+            Kembali ke kegiatan
+          </Link>
+        }
+      />
     )
 
   return (
     <div className="flex flex-col gap-4">
-      <div>
-        <Link to="/admin/kegiatan" className="inline-flex min-h-11 items-center text-brand-700">
-          ‹ Semua kegiatan
-        </Link>
-        <h1 className="text-2xl font-bold break-words">
-          {category.name} {category.pin_enabled && <span title="PIN aktif">🔒</span>}{' '}
-          {!category.is_active && <InactiveBadge />}
-        </h1>
-        {category.is_active ? (
-          <Link to={`/k/${category.slug}`} target="_blank" className="text-sm text-brand-700 underline">
-            Buka halaman publik (/k/{category.slug})
-          </Link>
-        ) : (
-          <p className="text-sm text-muted">Tersembunyi dari halaman orang tua. Aktifkan di tab Pengaturan.</p>
-        )}
+      <PageHeader
+        back={{ to: '/admin/kegiatan', label: 'Semua kegiatan' }}
+        title={category.name}
+        description={
+          <span className="mt-1 flex flex-wrap items-center gap-2">
+            {category.pin_enabled && (
+              <Badge>
+                <Lock className="size-3" aria-hidden /> PIN aktif
+              </Badge>
+            )}
+            {!category.is_active && <InactiveBadge />}
+            {category.is_active ? (
+              <a
+                href={`/k/${category.slug}`}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 text-sm font-semibold text-brand-700 hover:underline"
+              >
+                <ExternalLink className="size-4" aria-hidden /> Buka halaman publik
+              </a>
+            ) : (
+              <span className="text-sm">Tersembunyi dari halaman orang tua. Aktifkan di tab Pengaturan.</span>
+            )}
+          </span>
+        }
+      />
+      <div className="scrollbar-none -mx-4 overflow-x-auto px-4">
+        <Segmented
+          label="Bagian kegiatan"
+          value={tab}
+          options={TABS.map((t) => ({ value: t.id, label: t.label }))}
+          onChange={(id) => setParams({ tab: id }, { replace: true })}
+          className="min-w-max"
+        />
       </div>
-      <nav className="flex flex-wrap gap-1 rounded-2xl bg-gray-200/70 p-1" role="tablist">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.id}
-            onClick={() => setParams({ tab: t.id }, { replace: true })}
-            className={`min-h-11 flex-1 rounded-xl px-3 font-medium whitespace-nowrap ${
-              tab === t.id ? 'bg-white shadow-sm' : 'text-muted'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </nav>
       {tab === 'peserta' && <ParticipantsTab category={category} />}
       {tab === 'status' && <CategoryStatusesTab category={category} />}
       {tab === 'sesi' && <CategorySessionsTab category={category} />}

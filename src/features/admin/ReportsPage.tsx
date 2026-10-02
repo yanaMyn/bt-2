@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
 import { StatusPill } from '../../components/StatusPill'
-import { Button, Card, ErrorText, Field, inputClass } from '../../components/ui'
+import { Button, Card, ErrorText, Field, inputClass, PageHeader, Segmented } from '../../components/ui'
 import { compareByRange } from '../../lib/compare'
 import { unitLabel } from '../../lib/criteria'
 import {
@@ -117,22 +117,17 @@ export function ReportsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-2xl font-bold">Laporan</h1>
+      <PageHeader title="Laporan" description="Rekap kehadiran, riwayat per jamaah, dan grafik perbandingan." />
+      <div className="scrollbar-none -mx-4 overflow-x-auto px-4">
+        <Segmented
+          label="Jenis laporan"
+          value={mode}
+          options={MODES.map(([id, label]) => ({ value: id, label }))}
+          onChange={(id) => update({ mode: id })}
+          className="min-w-max"
+        />
+      </div>
       <Card className="flex flex-col gap-3">
-        <div className="grid grid-cols-2 gap-1 rounded-2xl bg-gray-200/70 p-1 sm:grid-cols-4" role="tablist">
-          {MODES.map(([id, label]) => (
-            <button
-              key={id}
-              type="button"
-              role="tab"
-              aria-selected={mode === id}
-              onClick={() => update({ mode: id })}
-              className={`min-h-11 rounded-xl px-2 font-medium ${mode === id ? 'bg-white shadow-sm' : 'text-muted'}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
         {(mode === 'rekap' || mode === 'anggota') && (
           <Field label="Kegiatan">
             <select
@@ -221,10 +216,10 @@ const sessionDates = (data: ReportData) => data.sessions.filter((s) => hasStarte
 function RecapTable({ rows, stats, caption }: { rows: RecapRow[]; stats: Stats; caption?: string }) {
   return (
     <Card className="p-0">
-      {caption && <p className="border-b border-gray-100 p-3 text-sm text-muted">{caption}</p>}
+      {caption && <p className="border-b border-slate-100 p-3 text-sm text-muted">{caption}</p>}
       <div className="overflow-x-auto">
         <table className="w-full text-left tabular-nums">
-          <thead className="border-b border-gray-200 text-sm text-muted">
+          <thead className="border-b border-slate-200 text-sm text-muted">
             <tr>
               <th className="p-3 font-medium">Status</th>
               <th className="p-3 text-right font-medium">L</th>
@@ -232,13 +227,13 @@ function RecapTable({ rows, stats, caption }: { rows: RecapRow[]; stats: Stats; 
               <th className="p-3 text-right font-medium">Total</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-gray-100">
+          <tbody className="divide-y divide-slate-100">
             {rows.map((r) => (
               <tr key={r.label}>
                 <td className="p-3">
                   <span className="inline-flex items-center gap-2">
                     <span
-                      className="h-3 w-3 rounded-full border border-gray-400"
+                      className="h-3 w-3 rounded-full border border-slate-400"
                       style={{ backgroundColor: r.color ?? 'transparent' }}
                     />
                     {r.label}
@@ -278,7 +273,7 @@ function MemberRecapTable({
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm tabular-nums">
-            <thead className="border-b border-gray-200 text-muted">
+            <thead className="border-b border-slate-200 text-muted">
               <tr>
                 <th className="sticky left-0 bg-white p-2 font-medium">Nama</th>
                 {kelompokOf && <th className="p-2 font-medium">Kelompok</th>}
@@ -292,7 +287,7 @@ function MemberRecapTable({
                 <th className="p-2 text-right font-medium">%</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-100">
+            <tbody className="divide-y divide-slate-100">
               {recap.rows.map((r) => (
                 <tr key={r.member.id}>
                   <td className="sticky left-0 min-w-32 bg-white p-2">{r.member.name}</td>
@@ -399,8 +394,8 @@ function RecapReport({
 
           {recap.single ? (
             <Card className="p-0">
-              <p className="border-b border-gray-100 p-3 font-bold">Daftar anggota ({recap.single.members.length})</p>
-              <ul className="divide-y divide-gray-100">
+              <p className="border-b border-slate-100 p-3 font-bold">Daftar anggota ({recap.single.members.length})</p>
+              <ul className="divide-y divide-slate-100">
                 {recap.single.members.map(({ member, status }) => (
                   <li key={member.id} className="flex items-center gap-3 px-3 py-2">
                     <span className="min-w-0 flex-1 break-words">
@@ -532,7 +527,7 @@ function CompareReport({
               aria-pressed={level === l.value}
               onClick={() => onLevel(l.value)}
               className={`min-h-11 rounded-full px-4 font-medium ring-1 ${
-                level === l.value ? 'bg-gray-900 text-white ring-gray-900' : 'bg-white ring-gray-300'
+                level === l.value ? 'bg-slate-900 text-white ring-slate-900' : 'bg-white ring-line'
               }`}
             >
               {l.label}
@@ -594,13 +589,13 @@ function JamaahReport({
           />
         </Field>
         {q && matches.length === 0 && <p className="text-muted">Nama tidak ditemukan.</p>}
-        <ul className="divide-y divide-gray-100">
+        <ul className="divide-y divide-slate-100">
           {matches.map((m) => (
             <li key={m.id}>
               <button
                 type="button"
                 onClick={() => onMember(m.id)}
-                className="flex min-h-12 w-full flex-col justify-center py-2 text-left hover:bg-gray-50"
+                className="flex min-h-12 w-full flex-col justify-center py-2 text-left hover:bg-slate-50"
               >
                 <span>
                   {m.name} <span className="text-muted">({m.gender})</span>
@@ -682,7 +677,7 @@ function JamaahReport({
           <Card className="p-0">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm tabular-nums">
-                <thead className="border-b border-gray-200 text-muted">
+                <thead className="border-b border-slate-200 text-muted">
                   <tr>
                     <th className="p-2 font-medium">Kegiatan</th>
                     <th className="p-2 text-right font-medium">Sesi</th>
@@ -690,7 +685,7 @@ function JamaahReport({
                     <th className="p-2 text-right font-medium">%</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-slate-100">
                   {summary.activities.map((a) => (
                     <tr key={a.category_id}>
                       <td className="p-2">
@@ -715,8 +710,8 @@ function JamaahReport({
             </div>
           </Card>
           <Card className="p-0">
-            <p className="border-b border-gray-100 p-3 font-bold">Riwayat ({history.data.length} sesi)</p>
-            <ul className="divide-y divide-gray-100">
+            <p className="border-b border-slate-100 p-3 font-bold">Riwayat ({history.data.length} sesi)</p>
+            <ul className="divide-y divide-slate-100">
               {[...history.data].reverse().map((r) => (
                 <li key={r.session_id} className="flex items-center gap-3 px-3 py-2">
                   <span className="min-w-0 flex-1 break-words">

@@ -1,8 +1,9 @@
+import { Plus } from 'lucide-react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { BottomSheet } from '../../components/BottomSheet'
 import { useToast } from '../../components/Toast'
-import { Button, Card, ConfirmDialog, ErrorText, Field, inputClass } from '../../components/ui'
+import { Button, Card, ConfirmDialog, ErrorText, Field, inputClass, PageHeader } from '../../components/ui'
 import { childrenOf } from '../../lib/criteria'
 import { errorMessage } from '../../lib/errors'
 import type { OrgUnit } from '../../lib/types'
@@ -53,17 +54,20 @@ export function StructurePage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-bold">Struktur</h1>
-          <p className="text-muted">
-            {profile.unit_level === 'daerah' ? `Daerah ${me.name}: Desa dan Kelompok.` : `Kelompok di Desa ${me.name}.`}
-          </p>
-        </div>
-        {profile.unit_level === 'daerah' && (
-          <Button onClick={() => setEditing({ mode: 'create', parent: me })}>+ Desa</Button>
-        )}
-      </div>
+      <PageHeader
+        eyebrow="Kelola"
+        title="Struktur"
+        description={
+          profile.unit_level === 'daerah' ? `Daerah ${me.name}: Desa dan Kelompok.` : `Kelompok di Desa ${me.name}.`
+        }
+        actions={
+          profile.unit_level === 'daerah' && (
+            <Button onClick={() => setEditing({ mode: 'create', parent: me })}>
+              <Plus className="size-5" aria-hidden /> Desa
+            </Button>
+          )
+        }
+      />
 
       {profile.unit_level === 'daerah' && (
         <Card className="flex flex-wrap items-center justify-between gap-2">
@@ -80,14 +84,14 @@ export function StructurePage() {
         const kelompok = childrenOf(units, desa.id)
         return (
           <Card key={desa.id} className="flex flex-col gap-2 p-0">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-100 px-4 pt-3 pb-2">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 pt-3 pb-2">
               <span>
                 <span className="text-sm text-muted">Desa</span>
                 <span className="block font-bold">{desa.name}</span>
               </span>
               {profile.unit_level === 'daerah' && unitRow(desa, true)}
             </div>
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-slate-100">
               {kelompok.map((k) => (
                 <li key={k.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-1">
                   <span>Kelompok {k.name}</span>

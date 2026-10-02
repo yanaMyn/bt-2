@@ -68,11 +68,11 @@ export function ParticipantsTab({ category }: { category: Category }) {
       {(ids.isPending || jamaah.isPending) && <p className="text-muted">Memuat…</p>}
       {ids.data && jamaah.data && (
         <Card className="p-0">
-          <p className="border-b border-gray-100 p-3 font-bold">{ids.data.length} peserta</p>
+          <p className="border-b border-slate-100 p-3 font-bold">{ids.data.length} peserta</p>
           {rows.length === 0 ? (
             <p className="p-4 text-muted">Tidak ada peserta.</p>
           ) : (
-            <ul className="divide-y divide-gray-100">
+            <ul className="divide-y divide-slate-100">
               {rows.map((m) => (
                 <li key={m.id} className="flex flex-wrap items-center gap-2 px-4 py-2">
                   <span className="min-w-0 flex-1 break-words">

@@ -22,7 +22,11 @@ const AdminsPage = lazy(() => admin().then((m) => ({ default: m.AdminsPage })))
 const TemplatesPage = lazy(() => admin().then((m) => ({ default: m.TemplatesPage })))
 const ReportsPage = lazy(() => admin().then((m) => ({ default: m.ReportsPage })))
 
-const loading = <p className="py-16 text-center text-muted">Memuat…</p>
+const loading = (
+  <div className="flex justify-center py-20" aria-label="Memuat">
+    <span className="size-8 animate-spin rounded-full border-[3px] border-brand-100 border-t-brand-600" />
+  </div>
+)
 const suspend = (el: ReactNode) => <Suspense fallback={loading}>{el}</Suspense>
 
 function Root() {
@@ -35,11 +39,13 @@ function Root() {
 
 function NotFound() {
   return (
-    <div className="mx-auto max-w-xl p-4 text-center">
-      <p className="mt-16 text-xl font-bold">Halaman tidak ditemukan</p>
+    <div className="mx-auto flex min-h-dvh max-w-md flex-col items-center justify-center px-4 text-center">
+      <p className="text-7xl font-extrabold tracking-tight text-brand-200">404</p>
+      <p className="mt-2 text-2xl font-extrabold tracking-tight">Halaman tidak ditemukan</p>
+      <p className="mt-1 text-muted">Tautan mungkin salah atau sudah tidak berlaku.</p>
       <a
         href="/"
-        className="mt-4 inline-flex min-h-12 items-center rounded-xl bg-brand-700 px-5 font-semibold text-white"
+        className="mt-6 inline-flex min-h-12 items-center rounded-2xl bg-brand-600 px-6 font-semibold text-white shadow-brand"
       >
         Ke beranda
       </a>

@@ -62,7 +62,7 @@ export function SelectAllRow({
   const count = visibleIds.filter((id) => selected.has(id)).length
   const all = visibleIds.length > 0 && count === visibleIds.length
   return (
-    <label className="flex min-h-12 items-center gap-3 border-b border-gray-100 px-4 text-sm font-medium">
+    <label className="flex min-h-12 items-center gap-3 border-b border-slate-100 px-4 text-sm font-medium">
       <input
         type="checkbox"
         className="h-6 w-6 shrink-0 accent-brand-700"
@@ -81,10 +81,10 @@ export function SelectAllRow({
 export function BulkBar({ count, onClear, children }: { count: number; onClear: () => void; children: ReactNode }) {
   if (count === 0) return null
   return (
-    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-gray-200 bg-white/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur">
+    <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/95 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-4px_12px_rgba(0,0,0,0.06)] backdrop-blur">
       <div className="mx-auto flex max-w-3xl flex-wrap items-center gap-2">
         <span className="mr-auto font-semibold">{count} dipilih</span>
-        <button type="button" onClick={onClear} className="min-h-11 rounded-xl px-3 text-muted hover:bg-gray-100">
+        <button type="button" onClick={onClear} className="min-h-11 rounded-xl px-3 text-muted hover:bg-slate-100">
           Batal pilih
         </button>
         {children}
